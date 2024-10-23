@@ -148,10 +148,7 @@ impl ObjectImpl for InterSink {
                     .get::<gst::Array>()
                     .expect("type checked upstream")
                     .iter()
-                    .map(|v| {
-                        let t = v.get::<gst::EventType>().expect("type checked upstream");
-                        gst::EventType::from(t)
-                    })
+                    .map(|v| v.get::<gst::EventType>().expect("type checked upstream"))
                     .collect::<Vec<_>>();
                 settings.event_types = types;
             }
@@ -167,9 +164,10 @@ impl ObjectImpl for InterSink {
             }
             "event-types" => {
                 let settings = self.settings.lock().unwrap();
-                settings.event_types
+                settings
+                    .event_types
                     .iter()
-                    .map(|x| gst::EventType::from(*x).to_send_value())
+                    .map(|x| x.to_send_value())
                     .collect::<gst::Array>()
                     .to_value()
             }
