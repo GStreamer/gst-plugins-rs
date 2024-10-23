@@ -22,7 +22,7 @@ impl Default for Settings {
     fn default() -> Self {
         Settings {
             producer_name: DEFAULT_PRODUCER_NAME.to_string(),
-            event_types: vec![gst::EventType::Eos],
+            event_types: Vec::default(),
         }
     }
 }
@@ -45,7 +45,9 @@ impl InterSink {
 
         match InterStreamProducer::acquire(&settings.producer_name, &state.appsink) {
             Ok(producer) => {
-                producer.set_forward_events(settings.event_types.clone());
+                if !settings.event_types.is_empty() {
+                    producer.set_forward_events(settings.event_types.clone());
+                }
                 Ok(())
             }
             Err(err) => Err(err),
@@ -98,13 +100,16 @@ impl ObjectImpl for InterSink {
                     .build(),
                 gst::ParamSpecArray::builder("event-types")
                     .element_spec(
-                        &glib::ParamSpecEnum::builder_with_default("event-type", gst::EventType::Eos)
-                            .nick("Event Type")
-                            .blurb("Event Type")
-                            .build(),
+                        &glib::ParamSpecEnum::builder_with_default(
+                            "event-type",
+                            gst::EventType::CustomDownstream,
+                        )
+                        .nick("Event Type")
+                        .blurb("Event Type")
+                        .build(),
                     )
                     .nick("Forwarded Event Types")
-                    .blurb("Forward Event Types (default EOS)")
+                    .blurb("Forwarded Event Types (default None)")
                     .mutable_ready()
                     .build(),
             ]
