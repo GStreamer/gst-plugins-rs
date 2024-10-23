@@ -130,21 +130,21 @@ gtk = { package = "gtk4", git = "https://github.com/gtk-rs/gtk4-rs", branch = "0
 gdk-wayland = { package = "gdk4-wayland", git = "https://github.com/gtk-rs/gtk4-rs", branch = "0.8", version = "0.8"}
 gdk-x11 = { package = "gdk4-x11", git = "https://github.com/gtk-rs/gtk4-rs", branch = "0.8", version = "0.8"}
 gdk-win32 = { package = "gdk4-win32", git = "https://github.com/gtk-rs/gtk4-rs", branch = "0.8", version = "0.8"}
-gst = { package = "gstreamer", git = "https://gitlab.freedesktop.org/gstreamer/gstreamer-rs", branch = "0.22", version = "0.22" }
-gst-allocators = { package = "gstreamer-allocators", git = "https://gitlab.freedesktop.org/gstreamer/gstreamer-rs", branch = "0.22", version = "0.22" }
-gst-app = { package = "gstreamer-app", git = "https://gitlab.freedesktop.org/gstreamer/gstreamer-rs", branch = "0.22", version = "0.22" }
-gst-audio = { package = "gstreamer-audio", git = "https://gitlab.freedesktop.org/gstreamer/gstreamer-rs", branch = "0.22", version = "0.22" }
-gst-base = { package = "gstreamer-base", git = "https://gitlab.freedesktop.org/gstreamer/gstreamer-rs", branch = "0.22", version = "0.22" }
-gst-check = { package = "gstreamer-check", git = "https://gitlab.freedesktop.org/gstreamer/gstreamer-rs", branch = "0.22", version = "0.22" }
-gst-gl = { package = "gstreamer-gl", git = "https://gitlab.freedesktop.org/gstreamer/gstreamer-rs", branch = "0.22", version = "0.22" }
-gst-gl-egl = { package = "gstreamer-gl-egl", git = "https://gitlab.freedesktop.org/gstreamer/gstreamer-rs", branch = "0.22", version = "0.22" }
-gst-gl-wayland = { package = "gstreamer-gl-wayland", git = "https://gitlab.freedesktop.org/gstreamer/gstreamer-rs", branch = "0.22", version = "0.22" }
-gst-gl-x11 = { package = "gstreamer-gl-x11", git = "https://gitlab.freedesktop.org/gstreamer/gstreamer-rs", branch = "0.22", version = "0.22" }
-gst-net = { package = "gstreamer-net", git = "https://gitlab.freedesktop.org/gstreamer/gstreamer-rs", branch = "0.22", version = "0.22" }
-gst-pbutils = { package = "gstreamer-pbutils", git = "https://gitlab.freedesktop.org/gstreamer/gstreamer-rs", branch = "0.22", version = "0.22" }
+gst = { package = "gstreamer", git = "https://github.com/blinemedical/gstreamer-rs", rev = "ae8af3f" }
+gst-allocators = { package = "gstreamer-allocators", git = "https://github.com/blinemedical/gstreamer-rs", rev = "ae8af3f" }
+gst-app = { package = "gstreamer-app", git = "https://github.com/blinemedical/gstreamer-rs", rev = "ae8af3f" }
+gst-audio = { package = "gstreamer-audio", git = "https://github.com/blinemedical/gstreamer-rs", rev = "ae8af3f" }
+gst-base = { package = "gstreamer-base", git = "https://github.com/blinemedical/gstreamer-rs", rev = "ae8af3f" }
+gst-check = { package = "gstreamer-check", git = "https://github.com/blinemedical/gstreamer-rs", rev = "ae8af3f" }
+gst-gl = { package = "gstreamer-gl", git = "https://github.com/blinemedical/gstreamer-rs", rev = "ae8af3f" }
+gst-gl-egl = { package = "gstreamer-gl-egl", git = "https://github.com/blinemedical/gstreamer-rs", rev = "ae8af3f" }
+gst-gl-wayland = { package = "gstreamer-gl-wayland", git = "https://github.com/blinemedical/gstreamer-rs", rev = "ae8af3f" }
+gst-gl-x11 = { package = "gstreamer-gl-x11", git = "https://github.com/blinemedical/gstreamer-rs", rev = "ae8af3f" }
+gst-net = { package = "gstreamer-net", git = "https://github.com/blinemedical/gstreamer-rs", rev = "ae8af3f" }
+gst-pbutils = { package = "gstreamer-pbutils", git = "https://github.com/blinemedical/gstreamer-rs", rev = "ae8af3f" }
 gst-plugin-version-helper = { path="./version-helper", version = "0.8" }
-gst-rtp = { package = "gstreamer-rtp", git = "https://gitlab.freedesktop.org/gstreamer/gstreamer-rs", branch = "0.22", version = "0.22" }
-gst-sdp = { package = "gstreamer-sdp", git = "https://gitlab.freedesktop.org/gstreamer/gstreamer-rs", branch = "0.22", version = "0.22" }
-gst-utils = { package = "gstreamer-utils", git = "https://gitlab.freedesktop.org/gstreamer/gstreamer-rs", branch = "0.22", version = "0.22" }
-gst-video = { package = "gstreamer-video", git = "https://gitlab.freedesktop.org/gstreamer/gstreamer-rs", branch = "0.22", version = "0.22" }
-gst-webrtc = { package = "gstreamer-webrtc", git = "https://gitlab.freedesktop.org/gstreamer/gstreamer-rs", branch = "0.22", version = "0.22" }
+gst-rtp = { package = "gstreamer-rtp", git = "https://github.com/blinemedical/gstreamer-rs", rev = "ae8af3f" }
+gst-sdp = { package = "gstreamer-sdp", git = "https://github.com/blinemedical/gstreamer-rs", rev = "ae8af3f" }
+gst-utils = { package = "gstreamer-utils", git = "https://github.com/blinemedical/gstreamer-rs", rev = "ae8af3f" }
+gst-video = { package = "gstreamer-video", git = "https://github.com/blinemedical/gstreamer-rs", rev = "ae8af3f" }
+gst-webrtc = { package = "gstreamer-webrtc", git = "https://github.com/blinemedical/gstreamer-rs", rev = "ae8af3f" }

@@ -2953,7 +2953,7 @@ dependencies = [
 [[package]]
 name = "gstreamer"
 version = "0.22.8"
-source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=0.22#b0aa32b844837013b561a4169df222b808a5de57"
+source = "git+https://github.com/blinemedical/gstreamer-rs?rev=ae8af3f#ae8af3f45821632797cebe293258b90550081db1"
 dependencies = [
  "cfg-if",
  "futures-channel",
@@ -2979,7 +2979,7 @@ dependencies = [
 [[package]]
 name = "gstreamer-allocators"
 version = "0.22.8"
-source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=0.22#b0aa32b844837013b561a4169df222b808a5de57"
+source = "git+https://github.com/blinemedical/gstreamer-rs?rev=ae8af3f#ae8af3f45821632797cebe293258b90550081db1"
 dependencies = [
  "glib",
  "gstreamer",
@@ -2991,7 +2991,7 @@ dependencies = [
 [[package]]
 name = "gstreamer-allocators-sys"
 version = "0.22.8"
-source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=0.22#b0aa32b844837013b561a4169df222b808a5de57"
+source = "git+https://github.com/blinemedical/gstreamer-rs?rev=ae8af3f#ae8af3f45821632797cebe293258b90550081db1"
 dependencies = [
  "glib-sys",
  "gobject-sys",
@@ -3003,7 +3003,7 @@ dependencies = [
 [[package]]
 name = "gstreamer-app"
 version = "0.22.8"
-source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=0.22#b0aa32b844837013b561a4169df222b808a5de57"
+source = "git+https://github.com/blinemedical/gstreamer-rs?rev=ae8af3f#ae8af3f45821632797cebe293258b90550081db1"
 dependencies = [
  "futures-core",
  "futures-sink",
@@ -3017,7 +3017,7 @@ dependencies = [
 [[package]]
 name = "gstreamer-app-sys"
 version = "0.22.8"
-source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=0.22#b0aa32b844837013b561a4169df222b808a5de57"
+source = "git+https://github.com/blinemedical/gstreamer-rs?rev=ae8af3f#ae8af3f45821632797cebe293258b90550081db1"
 dependencies = [
  "glib-sys",
  "gstreamer-base-sys",
@@ -3029,7 +3029,7 @@ dependencies = [
 [[package]]
 name = "gstreamer-audio"
 version = "0.22.8"
-source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=0.22#b0aa32b844837013b561a4169df222b808a5de57"
+source = "git+https://github.com/blinemedical/gstreamer-rs?rev=ae8af3f#ae8af3f45821632797cebe293258b90550081db1"
 dependencies = [
  "cfg-if",
  "glib",
@@ -3045,7 +3045,7 @@ dependencies = [
 [[package]]
 name = "gstreamer-audio-sys"
 version = "0.22.8"
-source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=0.22#b0aa32b844837013b561a4169df222b808a5de57"
+source = "git+https://github.com/blinemedical/gstreamer-rs?rev=ae8af3f#ae8af3f45821632797cebe293258b90550081db1"
 dependencies = [
  "glib-sys",
  "gobject-sys",
@@ -3058,7 +3058,7 @@ dependencies = [
 [[package]]
 name = "gstreamer-base"
 version = "0.22.8"
-source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=0.22#b0aa32b844837013b561a4169df222b808a5de57"
+source = "git+https://github.com/blinemedical/gstreamer-rs?rev=ae8af3f#ae8af3f45821632797cebe293258b90550081db1"
 dependencies = [
  "atomic_refcell",
  "cfg-if",
@@ -3071,7 +3071,7 @@ dependencies = [
 [[package]]
 name = "gstreamer-base-sys"
 version = "0.22.8"
-source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=0.22#b0aa32b844837013b561a4169df222b808a5de57"
+source = "git+https://github.com/blinemedical/gstreamer-rs?rev=ae8af3f#ae8af3f45821632797cebe293258b90550081db1"
 dependencies = [
  "glib-sys",
  "gobject-sys",
@@ -3083,7 +3083,7 @@ dependencies = [
 [[package]]
 name = "gstreamer-check"
 version = "0.22.8"
-source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=0.22#b0aa32b844837013b561a4169df222b808a5de57"
+source = "git+https://github.com/blinemedical/gstreamer-rs?rev=ae8af3f#ae8af3f45821632797cebe293258b90550081db1"
 dependencies = [
  "glib",
  "gstreamer",
@@ -3093,7 +3093,7 @@ dependencies = [
 [[package]]
 name = "gstreamer-check-sys"
 version = "0.22.8"
-source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=0.22#b0aa32b844837013b561a4169df222b808a5de57"
+source = "git+https://github.com/blinemedical/gstreamer-rs?rev=ae8af3f#ae8af3f45821632797cebe293258b90550081db1"
 dependencies = [
  "glib-sys",
  "gobject-sys",
@@ -3105,7 +3105,7 @@ dependencies = [
 [[package]]
 name = "gstreamer-gl"
 version = "0.22.8"
-source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=0.22#b0aa32b844837013b561a4169df222b808a5de57"
+source = "git+https://github.com/blinemedical/gstreamer-rs?rev=ae8af3f#ae8af3f45821632797cebe293258b90550081db1"
 dependencies = [
  "glib",
  "gstreamer",
@@ -3119,7 +3119,7 @@ dependencies = [
 [[package]]
 name = "gstreamer-gl-egl"
 version = "0.22.8"
-source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=0.22#b0aa32b844837013b561a4169df222b808a5de57"
+source = "git+https://github.com/blinemedical/gstreamer-rs?rev=ae8af3f#ae8af3f45821632797cebe293258b90550081db1"
 dependencies = [
  "glib",
  "gstreamer",
@@ -3131,7 +3131,7 @@ dependencies = [
 [[package]]
 name = "gstreamer-gl-egl-sys"
 version = "0.22.8"
-source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=0.22#b0aa32b844837013b561a4169df222b808a5de57"
+source = "git+https://github.com/blinemedical/gstreamer-rs?rev=ae8af3f#ae8af3f45821632797cebe293258b90550081db1"
 dependencies = [
  "glib-sys",
  "gstreamer-gl-sys",
@@ -3142,7 +3142,7 @@ dependencies = [
 [[package]]
 name = "gstreamer-gl-sys"
 version = "0.22.8"
-source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=0.22#b0aa32b844837013b561a4169df222b808a5de57"
+source = "git+https://github.com/blinemedical/gstreamer-rs?rev=ae8af3f#ae8af3f45821632797cebe293258b90550081db1"
 dependencies = [
  "glib-sys",
  "gobject-sys",
@@ -3156,7 +3156,7 @@ dependencies = [
 [[package]]
 name = "gstreamer-gl-wayland"
 version = "0.22.8"
-source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=0.22#b0aa32b844837013b561a4169df222b808a5de57"
+source = "git+https://github.com/blinemedical/gstreamer-rs?rev=ae8af3f#ae8af3f45821632797cebe293258b90550081db1"
 dependencies = [
  "glib",
  "gstreamer",
@@ -3168,7 +3168,7 @@ dependencies = [
 [[package]]
 name = "gstreamer-gl-wayland-sys"
 version = "0.22.8"
-source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=0.22#b0aa32b844837013b561a4169df222b808a5de57"
+source = "git+https://github.com/blinemedical/gstreamer-rs?rev=ae8af3f#ae8af3f45821632797cebe293258b90550081db1"
 dependencies = [
  "glib-sys",
  "gstreamer-gl-sys",
@@ -3179,7 +3179,7 @@ dependencies = [
 [[package]]
 name = "gstreamer-gl-x11"
 version = "0.22.8"
-source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=0.22#b0aa32b844837013b561a4169df222b808a5de57"
+source = "git+https://github.com/blinemedical/gstreamer-rs?rev=ae8af3f#ae8af3f45821632797cebe293258b90550081db1"
 dependencies = [
  "glib",
  "gstreamer",
@@ -3191,7 +3191,7 @@ dependencies = [
 [[package]]
 name = "gstreamer-gl-x11-sys"
 version = "0.22.8"
-source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=0.22#b0aa32b844837013b561a4169df222b808a5de57"
+source = "git+https://github.com/blinemedical/gstreamer-rs?rev=ae8af3f#ae8af3f45821632797cebe293258b90550081db1"
 dependencies = [
  "glib-sys",
  "gstreamer-gl-sys",
@@ -3202,7 +3202,7 @@ dependencies = [
 [[package]]
 name = "gstreamer-net"
 version = "0.22.8"
-source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=0.22#b0aa32b844837013b561a4169df222b808a5de57"
+source = "git+https://github.com/blinemedical/gstreamer-rs?rev=ae8af3f#ae8af3f45821632797cebe293258b90550081db1"
 dependencies = [
  "gio",
  "glib",
@@ -3213,7 +3213,7 @@ dependencies = [
 [[package]]
 name = "gstreamer-net-sys"
 version = "0.22.8"
-source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=0.22#b0aa32b844837013b561a4169df222b808a5de57"
+source = "git+https://github.com/blinemedical/gstreamer-rs?rev=ae8af3f#ae8af3f45821632797cebe293258b90550081db1"
 dependencies = [
  "gio-sys",
  "glib-sys",
@@ -3225,7 +3225,7 @@ dependencies = [
 [[package]]
 name = "gstreamer-pbutils"
 version = "0.22.8"
-source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=0.22#b0aa32b844837013b561a4169df222b808a5de57"
+source = "git+https://github.com/blinemedical/gstreamer-rs?rev=ae8af3f#ae8af3f45821632797cebe293258b90550081db1"
 dependencies = [
  "glib",
  "gstreamer",
@@ -3239,7 +3239,7 @@ dependencies = [
 [[package]]
 name = "gstreamer-pbutils-sys"
 version = "0.22.8"
-source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=0.22#b0aa32b844837013b561a4169df222b808a5de57"
+source = "git+https://github.com/blinemedical/gstreamer-rs?rev=ae8af3f#ae8af3f45821632797cebe293258b90550081db1"
 dependencies = [
  "glib-sys",
  "gobject-sys",
@@ -3253,7 +3253,7 @@ dependencies = [
 [[package]]
 name = "gstreamer-rtp"
 version = "0.22.8"
-source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=0.22#b0aa32b844837013b561a4169df222b808a5de57"
+source = "git+https://github.com/blinemedical/gstreamer-rs?rev=ae8af3f#ae8af3f45821632797cebe293258b90550081db1"
 dependencies = [
  "glib",
  "gstreamer",
@@ -3264,7 +3264,7 @@ dependencies = [
 [[package]]
 name = "gstreamer-rtp-sys"
 version = "0.22.8"
-source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=0.22#b0aa32b844837013b561a4169df222b808a5de57"
+source = "git+https://github.com/blinemedical/gstreamer-rs?rev=ae8af3f#ae8af3f45821632797cebe293258b90550081db1"
 dependencies = [
  "glib-sys",
  "gstreamer-base-sys",
@@ -3276,7 +3276,7 @@ dependencies = [
 [[package]]
 name = "gstreamer-sdp"
 version = "0.22.8"
-source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=0.22#b0aa32b844837013b561a4169df222b808a5de57"
+source = "git+https://github.com/blinemedical/gstreamer-rs?rev=ae8af3f#ae8af3f45821632797cebe293258b90550081db1"
 dependencies = [
  "glib",
  "gstreamer",
@@ -3286,7 +3286,7 @@ dependencies = [
 [[package]]
 name = "gstreamer-sdp-sys"
 version = "0.22.8"
-source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=0.22#b0aa32b844837013b561a4169df222b808a5de57"
+source = "git+https://github.com/blinemedical/gstreamer-rs?rev=ae8af3f#ae8af3f45821632797cebe293258b90550081db1"
 dependencies = [
  "glib-sys",
  "gstreamer-sys",
@@ -3297,7 +3297,7 @@ dependencies = [
 [[package]]
 name = "gstreamer-sys"
 version = "0.22.8"
-source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=0.22#b0aa32b844837013b561a4169df222b808a5de57"
+source = "git+https://github.com/blinemedical/gstreamer-rs?rev=ae8af3f#ae8af3f45821632797cebe293258b90550081db1"
 dependencies = [
  "glib-sys",
  "gobject-sys",
@@ -3308,7 +3308,7 @@ dependencies = [
 [[package]]
 name = "gstreamer-utils"
 version = "0.22.8"
-source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=0.22#b0aa32b844837013b561a4169df222b808a5de57"
+source = "git+https://github.com/blinemedical/gstreamer-rs?rev=ae8af3f#ae8af3f45821632797cebe293258b90550081db1"
 dependencies = [
  "gstreamer",
  "gstreamer-app",
@@ -3320,7 +3320,7 @@ dependencies = [
 [[package]]
 name = "gstreamer-video"
 version = "0.22.8"
-source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=0.22#b0aa32b844837013b561a4169df222b808a5de57"
+source = "git+https://github.com/blinemedical/gstreamer-rs?rev=ae8af3f#ae8af3f45821632797cebe293258b90550081db1"
 dependencies = [
  "cfg-if",
  "futures-channel",
@@ -3337,7 +3337,7 @@ dependencies = [
 [[package]]
 name = "gstreamer-video-sys"
 version = "0.22.8"
-source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=0.22#b0aa32b844837013b561a4169df222b808a5de57"
+source = "git+https://github.com/blinemedical/gstreamer-rs?rev=ae8af3f#ae8af3f45821632797cebe293258b90550081db1"
 dependencies = [
  "glib-sys",
  "gobject-sys",
@@ -3350,7 +3350,7 @@ dependencies = [
 [[package]]
 name = "gstreamer-webrtc"
 version = "0.22.8"
-source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=0.22#b0aa32b844837013b561a4169df222b808a5de57"
+source = "git+https://github.com/blinemedical/gstreamer-rs?rev=ae8af3f#ae8af3f45821632797cebe293258b90550081db1"
 dependencies = [
  "glib",
  "gstreamer",
@@ -3362,7 +3362,7 @@ dependencies = [
 [[package]]
 name = "gstreamer-webrtc-sys"
 version = "0.22.8"
-source = "git+https://gitlab.freedesktop.org/gstreamer/gstreamer-rs?branch=0.22#b0aa32b844837013b561a4169df222b808a5de57"
+source = "git+https://github.com/blinemedical/gstreamer-rs?rev=ae8af3f#ae8af3f45821632797cebe293258b90550081db1"
 dependencies = [
  "glib-sys",
  "gstreamer-sdp-sys",
