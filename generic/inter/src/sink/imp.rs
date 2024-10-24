@@ -15,14 +15,14 @@ const DEFAULT_PRODUCER_NAME: &str = "default";
 #[derive(Debug)]
 struct Settings {
     producer_name: String,
-    event_types: Vec<gst::EventType>,
+    event_types: Option<Vec<gst::EventType>>,
 }
 
 impl Default for Settings {
     fn default() -> Self {
         Settings {
             producer_name: DEFAULT_PRODUCER_NAME.to_string(),
-            event_types: vec![gst::EventType::Eos],
+            event_types: None,
         }
     }
 }
@@ -40,12 +40,16 @@ pub struct InterSink {
 
 impl InterSink {
     fn prepare(&self) -> Result<(), Error> {
-        let settings = self.settings.lock().unwrap();
+        let mut settings = self.settings.lock().unwrap();
         let state = self.state.lock().unwrap();
 
         match InterStreamProducer::acquire(&settings.producer_name, &state.appsink) {
             Ok(producer) => {
-                producer.set_forward_events(settings.event_types.clone());
+                if let Some(types) = settings.event_types.as_ref() {
+                    producer.set_forward_events(types.clone());
+                } else {
+                    settings.event_types = Some(producer.get_forward_events());
+                }
                 Ok(())
             }
             Err(err) => Err(err),
@@ -153,7 +157,7 @@ impl ObjectImpl for InterSink {
                     .iter()
                     .map(|v| v.get::<gst::EventType>().expect("type checked upstream"))
                     .collect::<Vec<_>>();
-                settings.event_types = types;
+                settings.event_types = Some(types);
             }
             _ => unimplemented!(),
         };
@@ -169,6 +173,8 @@ impl ObjectImpl for InterSink {
                 let settings = self.settings.lock().unwrap();
                 settings
                     .event_types
+                    .as_ref()
+                    .unwrap_or(&Vec::new())
                     .iter()
                     .map(|x| x.to_send_value())
                     .collect::<gst::Array>()
