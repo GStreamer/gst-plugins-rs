@@ -695,18 +695,15 @@ impl Transcriber {
             state.result_rx = Some(result_rx);
             state.client = Some(client);
 
-            let _enter_guard = RUNTIME.enter();
-
             gst::info!(CAT, imp = self, "establishing connection");
 
-            let mut output = futures::executor::block_on(async move {
-                builder.audio_stream(chunk_stream.into()).send().await
-            })
-            .map_err(|err| {
-                let err = format!("Transcribe ws init error: {err}: {} ({err:?})", err.meta());
-                gst::error!(CAT, imp = self, "{err}");
-                gst::error_msg!(gst::LibraryError::Init, ["{err}"])
-            })?;
+            let mut output = RUNTIME
+                .block_on(async move { builder.audio_stream(chunk_stream.into()).send().await })
+                .map_err(|err| {
+                    let err = format!("Transcribe ws init error: {err}: {} ({err:?})", err.meta());
+                    gst::error!(CAT, imp = self, "{err}");
+                    gst::error_msg!(gst::LibraryError::Init, ["{err}"])
+                })?;
 
             gst::info!(CAT, imp = self, "connection established!");
 
@@ -775,7 +772,6 @@ impl Transcriber {
         };
 
         gst::log!(CAT, imp = self, "Loading aws config...");
-        let _enter_guard = RUNTIME.enter();
 
         let config_loader = match (access_key, secret_access_key) {
             (Some(key), Some(secret_key)) => {
@@ -804,7 +800,7 @@ impl Transcriber {
         let config_loader =
             config_loader.stalled_stream_protection(StalledStreamProtectionConfig::disabled());
 
-        let config = futures::executor::block_on(config_loader.load());
+        let config = RUNTIME.block_on(config_loader.load());
         gst::log!(CAT, imp = self, "Using region {}", config.region().unwrap());
 
         *self.aws_config.lock().unwrap() = Some(config);
