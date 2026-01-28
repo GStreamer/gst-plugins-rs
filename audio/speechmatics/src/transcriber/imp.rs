@@ -414,9 +414,7 @@ impl TranscriberSrcPad {
                                 .seqnum(seqnum)
                                 .build();
                             gst::log!(CAT, "Pushing gap:    {} -> {}", last_position, pts);
-                            if !self.obj().push_event(gap_event) {
-                                return false;
-                            }
+                            self.obj().push_event(gap_event);
                         }
                     }
 
@@ -478,9 +476,7 @@ impl TranscriberSrcPad {
                     last_position_ + duration
                 );
                 last_position = Some(last_position_ + duration);
-                if !self.obj().push_event(gap_event) {
-                    return false;
-                }
+                self.obj().push_event(gap_event);
             }
 
             self.state

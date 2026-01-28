@@ -1608,9 +1608,7 @@ impl TranslationPadTask {
                             imp = self.pad,
                             "Pushing gap:    {last_position} -> {pts}"
                         );
-                        if !self.pad.obj().push_event(gap_event) {
-                            return false;
-                        }
+                        self.pad.obj().push_event(gap_event);
                     }
                     Less => {
                         // The buffer we are about to push was expected to start
@@ -1715,9 +1713,7 @@ impl TranslationPadTask {
 
             last_position += duration;
 
-            if !self.pad.obj().push_event(gap_event) {
-                return false;
-            }
+            self.pad.obj().push_event(gap_event);
         }
 
         let mut pad_state = self.pad.state.lock().unwrap();
