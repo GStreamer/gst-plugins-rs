@@ -25,6 +25,7 @@ RS_PREFIXED = [
     'tracers',
     'rtp',
     'rtsp',
+    'udp',
     'inter',
     'validate',
 ]

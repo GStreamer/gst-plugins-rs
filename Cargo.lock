@@ -5056,6 +5056,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "gst-plugin-udp"
+version = "0.16.0-alpha"
+dependencies = [
+ "anyhow",
+ "atomic_refcell",
+ "getifaddrs",
+ "gio",
+ "glib",
+ "gst-plugin-version-helper",
+ "gstreamer",
+ "gstreamer-base",
+ "gstreamer-check",
+ "gstreamer-net",
+ "itertools 0.14.0",
+ "libc",
+ "lru",
+ "mio",
+ "socket2 0.6.2",
+]
+
+[[package]]
 name = "gst-plugin-uriplaylistbin"
 version = "0.16.0-alpha"
 dependencies = [
@@ -7243,6 +7264,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a69bcab0ad47271a0234d9422b131806bf3968021e5dc9328caf2d4cd58557fc"
 dependencies = [
  "libc",
+ "log",
  "wasi",
  "windows-sys 0.61.2",
 ]

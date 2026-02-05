@@ -33,6 +33,7 @@ RENAMES = {
     'rsflv': 'flavors',
     'rsrtp': 'rtp',
     'rsrtsp': 'rtsp',
+    'rsudp': 'udp',
     'rswebp': 'webp',
     'rsonvif': 'onvif',
     'rstracers': 'tracers',

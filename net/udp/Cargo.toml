@@ -1,0 +1,55 @@
+[package]
+name = "gst-plugin-udp"
+version.workspace = true
+authors = ["Sebastian Dröge <sebastian@centricular.com>"]
+repository.workspace = true
+license = "MPL-2.0"
+edition.workspace = true
+description = "GStreamer Rust UDP Plugin"
+rust-version.workspace = true
+
+[dependencies]
+atomic_refcell = "0.1"
+glib.workspace = true
+gio.workspace = true
+gst.workspace = true
+gst-base.workspace = true
+gst-net.workspace = true
+libc = "0.2"
+mio = { version = "1.0", features = ["net", "os-poll"] }
+getifaddrs = "0.6"
+socket2 = { version = "0.6", features = ["all"] }
+anyhow = "1"
+itertools = "0.14"
+lru = "0.16"
+
+[build-dependencies]
+gst-plugin-version-helper.workspace = true
+
+[lib]
+name = "gstrsudp"
+crate-type = ["cdylib", "rlib"]
+path = "src/lib.rs"
+
+[features]
+static = []
+capi = []
+doc = ["gst/v1_18"]
+
+[dev-dependencies]
+gst-check.workspace = true
+
+[package.metadata.capi]
+min_version = "0.9.21"
+
+[package.metadata.capi.header]
+enabled = false
+
+[package.metadata.capi.library]
+install_subdir = "gstreamer-1.0"
+versioning = false
+import_library = false
+
+[package.metadata.capi.pkg_config]
+requires_private = "gstreamer-1.0, gstreamer-base-1.0, gstreamer-net-1.0, gio-2.0, gobject-2.0, glib-2.0, gmodule-2.0"
+

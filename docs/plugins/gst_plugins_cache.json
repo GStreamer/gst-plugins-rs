@@ -15161,6 +15161,294 @@
         },
         "url": "https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs"
     },
+    "rsudp": {
+        "description": "GStreamer Rust UDP Plugin",
+        "elements": {
+            "udpsrc2": {
+                "author": "Sebastian Dröge <sebastian@centricular.com>",
+                "description": "Reads an UDP stream",
+                "hierarchy": [
+                    "GstUdpSrc2",
+                    "GstPushSrc",
+                    "GstBaseSrc",
+                    "GstElement",
+                    "GstObject",
+                    "GInitiallyUnowned",
+                    "GObject"
+                ],
+                "interfaces": [
+                    "GstURIHandler"
+                ],
+                "klass": "Source/Network",
+                "pad-templates": {
+                    "src": {
+                        "caps": "ANY",
+                        "direction": "src",
+                        "presence": "always"
+                    }
+                },
+                "properties": {
+                    "address": {
+                        "blurb": "IP Address to bind to",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "0.0.0.0",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "gchararray",
+                        "writable": true
+                    },
+                    "allow-gro": {
+                        "blurb": "Allow GRO",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "false",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "gboolean",
+                        "writable": true
+                    },
+                    "auto-multicast": {
+                        "blurb": "Automatically join/leave multicast groups",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "true",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "gboolean",
+                        "writable": true
+                    },
+                    "batch-size": {
+                        "blurb": "batch size",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "16",
+                        "max": "1024",
+                        "min": "1",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "guint",
+                        "writable": true
+                    },
+                    "buffer-size": {
+                        "blurb": "Socket receive buffer size",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "0",
+                        "max": "-1",
+                        "min": "0",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "guint",
+                        "writable": true
+                    },
+                    "caps": {
+                        "blurb": "Caps of the received stream",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "GstCaps",
+                        "writable": true
+                    },
+                    "close-socket": {
+                        "blurb": "Close socket on state change if passed as property",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "false",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "gboolean",
+                        "writable": true
+                    },
+                    "loop": {
+                        "blurb": "Loop back multicast packets",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "true",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "gboolean",
+                        "writable": true
+                    },
+                    "mtu": {
+                        "blurb": "Maximum expected packet size",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "1500",
+                        "max": "-1",
+                        "min": "1",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "guint",
+                        "writable": true
+                    },
+                    "multicast-iface": {
+                        "blurb": "The network interface on which to join the multicast group. This allows multiple interfaces separated by comma. (\"eth0,eth1\")",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "NULL",
+                        "mutable": "null",
+                        "readable": true,
+                        "type": "gchararray",
+                        "writable": true
+                    },
+                    "port": {
+                        "blurb": "Port to bind to and receive packets from",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "5000",
+                        "max": "65535",
+                        "min": "0",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "guint",
+                        "writable": true
+                    },
+                    "preserve-packetization": {
+                        "blurb": "Preserve UDP packetization instead of potentially outputting multiple packets in the same buffer",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "true",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "gboolean",
+                        "writable": true
+                    },
+                    "reuse": {
+                        "blurb": "Allow port reuse",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "true",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "gboolean",
+                        "writable": true
+                    },
+                    "skip-first-bytes": {
+                        "blurb": "Number of bytes to skip for each UDP packet",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "0",
+                        "max": "-1",
+                        "min": "0",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "guint",
+                        "writable": true
+                    },
+                    "socket": {
+                        "blurb": "Socket to use for UDP reception. (None == allocate)",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "GSocket",
+                        "writable": true
+                    },
+                    "source-filter": {
+                        "blurb": "Comma-separated list of source IP addresses or hostnames for filtering",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "NULL",
+                        "mutable": "null",
+                        "readable": true,
+                        "type": "gchararray",
+                        "writable": true
+                    },
+                    "source-filter-exclusive": {
+                        "blurb": "If set to TRUE (exclusive mode) all addresses in source-filter will be filtered out, otherwise (inclusive mode) only the addresses in source-filter will be accepted.",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "false",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "gboolean",
+                        "writable": true
+                    },
+                    "timeout": {
+                        "blurb": "Post a message after timeout nanoseconds (0 = disabled)",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "0",
+                        "max": "18446744073709551615",
+                        "min": "0",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "guint64",
+                        "writable": true
+                    },
+                    "uri": {
+                        "blurb": "URI in the form of udp://multicast_group:port",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "udp://0.0.0.0:5000",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "gchararray",
+                        "writable": true
+                    },
+                    "used-socket": {
+                        "blurb": "Socket currently in use for UDP reception. (None = no socket)",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "mutable": "null",
+                        "readable": true,
+                        "type": "GSocket",
+                        "writable": false
+                    }
+                },
+                "rank": "none"
+            }
+        },
+        "filename": "gstrsudp",
+        "license": "MPL",
+        "other-types": {},
+        "package": "gst-plugin-udp",
+        "source": "gst-plugin-udp",
+        "tracers": {},
+        "url": "https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs"
+    },
     "rsvideofx": {
         "description": "GStreamer Rust Video Effects Plugin",
         "elements": {
