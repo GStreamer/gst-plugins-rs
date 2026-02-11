@@ -168,10 +168,11 @@ impl Polly {
         let (client, in_format) = {
             let state = self.state.lock().unwrap();
 
-            (
-                state.client.as_ref().expect("connected").clone(),
-                state.in_format.as_ref().expect("received caps").clone(),
-            )
+            let Some(in_format) = state.in_format.as_ref().cloned() else {
+                return Err(anyhow!("No caps received"));
+            };
+
+            (state.client.as_ref().expect("connected").clone(), in_format)
         };
 
         gst::debug!(CAT, imp = self, "synthesizing speech from text {content}");
