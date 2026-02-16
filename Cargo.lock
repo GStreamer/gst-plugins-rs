@@ -4423,6 +4423,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "gst-plugin-flate"
+version = "0.16.0-alpha"
+dependencies = [
+ "flate2",
+ "gst-plugin-version-helper",
+ "gstreamer",
+ "gstreamer-app",
+ "gstreamer-base",
+ "gstreamer-check",
+ "tempfile",
+]
+
+[[package]]
 name = "gst-plugin-flavors"
 version = "0.16.0-alpha"
 dependencies = [

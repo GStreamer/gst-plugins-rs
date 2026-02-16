@@ -20,6 +20,7 @@ members = [
     "audio/whisper",
 
     "generic/file",
+    "generic/flate",
     "generic/originalbuffer",
     "generic/sodium",
     "generic/threadshare",
@@ -91,6 +92,7 @@ default-members = [
     "audio/demucs",
     "audio/lewton",
 
+    "generic/flate",
     "generic/originalbuffer",
     "generic/threadshare",
     "generic/inter",

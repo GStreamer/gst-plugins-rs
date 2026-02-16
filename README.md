@@ -29,6 +29,8 @@ You will find the following plugins in this repository:
 
     - `file`: A Rust implementation of the standard `filesrc` and `filesink` elements
 
+    - `flate`: General purpose lossless compression plugin.
+
     - `gopbuffer`: Stores a minimum duration of data delimited by discrete GOPs (Group of Picture).
 
     - `inter`: 1:N wormhole for sending data from one pipeline to another within the same process using the [`StreamProducer` API](https://docs.rs/gstreamer-utils/latest/gstreamer_utils/struct.StreamProducer.html).
