@@ -142,3 +142,122 @@ fn test_payloader() {
         assert_eq!(packet.timestamp(), base_ts.unwrap() + ts_offset);
     }
 }
+
+#[test]
+fn test_seq_hdr_insert() {
+    #[rustfmt::skip]
+    let test_buffers: [(bool, Vec<u8>); 4] = [
+        (
+            true,
+            vec![ // keyframe with sequence header present
+                0b0001_0010, 0,
+                0b0000_1010, 0,
+                0b0011_0010, 0b0000_1100, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
+                0b0011_0010, 0b0000_1001, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+            ],
+        ),
+        (
+            false,
+            vec![ // (non-key) frame
+                0b0001_0010, 0,
+                0b0011_0010, 0b0000_1100, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
+                0b0011_0010, 0b0000_1001, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+            ],
+        ),
+        (
+            true, // keyframe
+            vec![ // first buffer with only Temporal delimiter in one buffer
+                0b0001_0010, 0,
+            ],
+        ),
+        (
+            true, // keyframe continued
+            vec![
+                 // from the previous buffer without a sequence header
+                0b0011_0010, 0b0000_1100, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
+                0b0011_0010, 0b0000_1001, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+            ],
+        ),
+    ];
+
+    #[rustfmt::skip]
+    let expected = [
+        vec![
+                0b0011_1000,
+                0b0000_0001, 0b0000_1000,
+                0b0000_1101, 0b0011_0000, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
+                             0b0011_0000, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+        ],
+        vec![
+                0b0010_0000,
+                0b0000_1101, 0b0011_0000, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
+                             0b0011_0000, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+        ],
+        vec![
+                0b0011_1000, //start of sequence
+                0b0000_0001, 0b0000_1000,
+                0b0000_1101, 0b0011_0000, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
+                             0b0011_0000, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+        ],
+    ];
+
+    init();
+
+    let mut h = Harness::new("rtpav1pay");
+    {
+        let pay = h.element().unwrap();
+        pay.set_property(
+            "mtu",
+            27u32 + rtp_types::RtpPacket::MIN_RTP_PACKET_LEN as u32,
+        );
+    }
+    h.play();
+
+    let caps = Caps::builder("video/x-av1")
+        .field("parsed", true)
+        .field("stream-format", "obu-stream")
+        .field("alignment", "obu")
+        .build();
+    h.set_src_caps(caps);
+
+    for (i, (keyframe, bytes)) in test_buffers.iter().enumerate() {
+        let mut buffer = Buffer::with_size(bytes.len())
+            .unwrap()
+            .into_mapped_buffer_writable()
+            .unwrap();
+        buffer.copy_from_slice(bytes);
+
+        let mut buffer = buffer.into_buffer();
+
+        if !keyframe {
+            buffer
+                .get_mut()
+                .unwrap()
+                .set_flags(gst::BufferFlags::DELTA_UNIT);
+        }
+
+        if i == 0 {
+            buffer
+                .get_mut()
+                .unwrap()
+                .set_pts(ClockTime::from_nseconds(0));
+        }
+
+        h.push(buffer).unwrap();
+    }
+    h.push_event(Eos::new());
+
+    let mut base_ts = None;
+    for (idx, payload) in expected.iter().enumerate() {
+        println!("checking packet {idx}...");
+
+        let buffer = h.pull().unwrap();
+        let map = buffer.map_readable().unwrap();
+        let packet = rtp_types::RtpPacket::parse(&map).unwrap();
+        if base_ts.is_none() {
+            base_ts = Some(packet.timestamp());
+        }
+
+        assert_eq!(packet.payload(), payload.as_slice());
+    }
+}

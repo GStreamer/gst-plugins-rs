@@ -64,6 +64,14 @@ struct ObuData {
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
+enum KeyFrameState {
+    #[default]
+    Undefined,
+    TemporalDelimiter,
+    SequenceHeader,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 struct State {
     /// Holds header information and raw bytes for all received OBUs,
     /// as well as DTS and PTS
@@ -75,6 +83,14 @@ struct State {
 
     /// If the input is TU or frame aligned.
     framed: bool,
+
+    /// Cache of the last SequenceHeader
+    /// Will be used to insert at the beginning of an RTP packet
+    /// if a keyframe is missing it
+    last_sequence_header: Option<ObuData>,
+
+    /// Recorded OBU in the last key frame
+    key_frame_state: KeyFrameState,
 }
 
 #[derive(Debug, Default)]
@@ -141,6 +157,12 @@ impl RTPAv1Pay {
                         offset: 0,
                         id,
                     });
+
+                    if keyframe {
+                        state.key_frame_state = KeyFrameState::TemporalDelimiter;
+                    } else {
+                        state.key_frame_state = KeyFrameState::Undefined;
+                    }
                 }
 
                 _ => {
@@ -166,13 +188,51 @@ impl RTPAv1Pay {
                         .read_exact(&mut bytes[(obu.header_len as usize)..bytes_total])
                         .map_err(err_flow!(self, buf_read))?;
 
-                    state.obus.push_back(ObuData {
+                    let this_obu = ObuData {
                         info: obu,
                         keyframe,
                         bytes,
                         offset: 0,
                         id,
-                    });
+                    };
+
+                    if keyframe {
+                        // the current obu is SequenceHeader save it to the state
+                        // and continue
+                        if obu.obu_type == ObuType::SequenceHeader {
+                            gst::trace!(
+                                CAT,
+                                imp = self,
+                                "Sequence header present in the keyframe TU"
+                            );
+                            state.last_sequence_header = Some(this_obu.clone());
+                            state.key_frame_state = KeyFrameState::SequenceHeader;
+                        }
+                        // if the current obu is Frame or FrameHeader, check if the previous state
+                        // was TemporalDelimiter which means there was no SequenceHeader so insert
+                        // the last saved one.
+                        // Some encoders like (svtav1enc), seem to send a 'Frame' type OBU, instead of a `FrameHeader`,
+                        // after the SequenceHeader or TemporalDelimiter, so check for the 'Frame'
+                        // type also
+                        else if (obu.obu_type == ObuType::FrameHeader
+                            || obu.obu_type == ObuType::Frame)
+                            && state.key_frame_state == KeyFrameState::TemporalDelimiter
+                            && let Some(seq_hdr) = &state.last_sequence_header
+                        {
+                            gst::info!(
+                                CAT,
+                                imp = self,
+                                "Missing sequence header in the key frame, inserting the previous one before frame header"
+                            );
+
+                            let mut seq_hdr_clone = seq_hdr.clone();
+                            seq_hdr_clone.id = id;
+                            state.obus.push_back(seq_hdr_clone);
+                            state.key_frame_state = KeyFrameState::SequenceHeader;
+                        };
+                    }
+
+                    state.obus.push_back(this_obu);
                 }
             }
         }
@@ -612,6 +672,7 @@ impl crate::basepay::RtpBasePay2Impl for RTPAv1Pay {
         let keyframe = !buffer.flags().contains(gst::BufferFlags::DELTA_UNIT);
         // Does the buffer finished a full TU?
         let marker = buffer.flags().contains(gst::BufferFlags::MARKER) || state.framed;
+
         let res = self.handle_new_obus(&mut state, id, map.as_slice(), keyframe, marker)?;
         drop(map);
         drop(state);
@@ -818,6 +879,8 @@ mod tests {
                         input_data[0].1.obus[2].clone(),
                         input_data[0].1.obus[4].clone(),
                     ]),
+                    last_sequence_header: input_data[0].1.last_sequence_header.clone(),
+                    key_frame_state: input_data[0].1.key_frame_state.clone(),
                     ..input_data[0].1
                 },
             ),
@@ -836,6 +899,8 @@ mod tests {
                         copy.pop_front().unwrap();
                         copy
                     },
+                    last_sequence_header: input_data[0].1.last_sequence_header.clone(),
+                    key_frame_state: input_data[0].1.key_frame_state.clone(),
                     ..input_data[1].1
                 },
             ),
@@ -847,6 +912,8 @@ mod tests {
                         copy.pop_front().unwrap();
                         copy
                     },
+                    last_sequence_header: input_data[1].1.last_sequence_header.clone(),
+                    key_frame_state: input_data[0].1.key_frame_state.clone(),
                     ..input_data[2].1
                 },
             ),
