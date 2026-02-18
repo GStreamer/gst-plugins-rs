@@ -10,6 +10,7 @@ rust-version.workspace = true
 
 [dependencies]
 gst = { workspace = true,  features = ["v1_20"] }
+gst-video.workspace = true
 gst-app.workspace = true
 gio.workspace = true
 m3u8-rs = "6.0"
@@ -19,7 +20,6 @@ sprintf = "0.4"
 [dev-dependencies]
 glib.workspace = true
 gst-audio.workspace = true
-gst-video.workspace = true
 gst-check.workspace = true
 gst-pbutils = { workspace = true, features = ["v1_20"] }
 m3u8-rs = "6.0"
@@ -52,4 +52,4 @@ versioning = false
 import_library = false
 
 [package.metadata.capi.pkg_config]
-requires_private = "gstreamer-1.0, gstreamer-base-1.0, gobject-2.0, glib-2.0, gmodule-2.0"
+requires_private = "gstreamer-1.0, gstreamer-base-1.0, gstreamer-video-1.0, gobject-2.0, glib-2.0, gmodule-2.0"

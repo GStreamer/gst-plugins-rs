@@ -17,6 +17,7 @@ use gst::glib;
 mod hlsbasesink;
 pub mod hlscmafsink;
 pub mod hlssink3;
+pub mod hlswebvttsink;
 mod playlist;
 
 glib::wrapper! {
@@ -41,6 +42,7 @@ pub fn plugin_init(plugin: &gst::Plugin) -> Result<(), glib::BoolError> {
 
     hlssink3::register(plugin)?;
     hlscmafsink::register(plugin)?;
+    hlswebvttsink::register(plugin)?;
 
     Ok(())
 }

@@ -5119,6 +5119,109 @@
                     }
                 },
                 "rank": "none"
+            },
+            "hlswebvttsink": {
+                "author": "Seungha Yang <seungha@centricular.com>",
+                "description": "HTTP Live Streaming WebVTT Sink",
+                "hierarchy": [
+                    "GstHlsWebvttSink",
+                    "GstHlsBaseSink",
+                    "GstBin",
+                    "GstElement",
+                    "GstObject",
+                    "GInitiallyUnowned",
+                    "GObject"
+                ],
+                "interfaces": [
+                    "GstChildProxy"
+                ],
+                "klass": "Sink/Muxer",
+                "pad-templates": {
+                    "sink": {
+                        "caps": "application/x-subtitle-vtt-fragmented:\n",
+                        "direction": "sink",
+                        "presence": "always"
+                    }
+                },
+                "properties": {
+                    "enable-timestamp-map": {
+                        "blurb": "Write X-TIMESTAMP-MAP tag to WebVTT segments",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "true",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "gboolean",
+                        "writable": true
+                    },
+                    "location": {
+                        "blurb": "Location of the fragment file to write",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "segment%%05d.vtt",
+                        "mutable": "null",
+                        "readable": true,
+                        "type": "gchararray",
+                        "writable": true
+                    },
+                    "mpegts-time-offset": {
+                        "blurb": "Time offset, in MPEG-TS time (90 kHz clock), corresponding to running-time zero. The default value is 324000000 (1 hour, i.e. 60 * 60 * 90000), which matches the offset used by the mpegtsmux element. If set to UINT64_MAX, the element will use a fixed EXT-X-TIMESTAMP-MAP tag (i.e. MPEGTS:0, LOCAL:00:00:00.000) without handling MPEG-TS PTS wrap-around. This can be useful when generating WebVTT playlists for fMP4-based HLS, where MPEG-TS PES timestamp wrap-around does not apply",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "324000000",
+                        "max": "18446744073709551615",
+                        "min": "0",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "guint64",
+                        "writable": true
+                    },
+                    "playlist-type": {
+                        "blurb": "The type of the playlist to use. When VOD type is set, the playlist will be live until the pipeline ends execution.",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "unspecified (0)",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "GstHlsSink3PlaylistType",
+                        "writable": true
+                    },
+                    "sync": {
+                        "blurb": "Sync on the clock",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "true",
+                        "mutable": "null",
+                        "readable": true,
+                        "type": "gboolean",
+                        "writable": true
+                    },
+                    "target-duration": {
+                        "blurb": "The target duration in seconds of a segment/file. (0 - disabled, useful for management of segment duration by the streaming server)",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "15",
+                        "max": "-1",
+                        "min": "0",
+                        "mutable": "ready",
+                        "readable": true,
+                        "type": "guint",
+                        "writable": true
+                    }
+                },
+                "rank": "none"
             }
         },
         "filename": "gsthlssink3",
