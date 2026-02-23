@@ -17,7 +17,7 @@ static CAT: LazyLock<gst::DebugCategory> = LazyLock::new(|| {
 });
 
 glib::wrapper! {
-    pub struct Rtp2Session(ObjectSubclass<imp::Rtp2Session>);
+    pub struct Rtp2Session(ObjectSubclass<imp::Rtp2Session>) @extends gst::Object;
 }
 
 impl Rtp2Session {
@@ -111,8 +111,10 @@ mod imp {
     impl ObjectSubclass for Rtp2Session {
         const NAME: &'static str = "GstRtp2Session";
         type Type = super::Rtp2Session;
-        type ParentType = glib::Object;
+        type ParentType = gst::Object;
     }
+
+    impl GstObjectImpl for Rtp2Session {}
 
     impl ObjectImpl for Rtp2Session {
         fn properties() -> &'static [glib::ParamSpec] {
