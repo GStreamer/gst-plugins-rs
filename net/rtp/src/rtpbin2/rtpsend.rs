@@ -36,6 +36,7 @@
  */
 use std::collections::HashMap;
 use std::pin::Pin;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::task::Poll;
 use std::time::{Duration, Instant, SystemTime};
@@ -233,6 +234,7 @@ impl SendSession {
     }
 
     async fn rtcp_task(state: Arc<Mutex<State>>, session_id: usize) {
+        let sent_required_events = Arc::new(AtomicBool::new(false));
         let mut stream = RtcpSendStream::new(state.clone(), session_id);
         // we use a semaphore instead of mutex for ordering
         // i.e. we should only allow a single pad push, but still allow other rtcp tasks to
@@ -260,10 +262,24 @@ impl SendSession {
 
             if let Some((rtcp_srcpad, data)) = send {
                 let acquired = sem.clone().acquire_owned().await;
+                let sent_required_events = sent_required_events.clone();
                 rtpbin2::get_or_init_runtime()
                     .expect("initialized in change_state()")
                     .spawn_blocking(move || {
                         let buffer = gst::Buffer::from_mut_slice(data);
+                        if sent_required_events
+                            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+                            .is_ok()
+                        {
+                            let stream_start =
+                                gst::event::StreamStart::new(&format!("rtcp_{session_id}"));
+                            rtcp_srcpad.push_event(stream_start);
+                            let caps = gst::Caps::builder("application/x-rtcp").build();
+                            rtcp_srcpad.push_event(gst::event::Caps::new(&caps));
+                            let segment = gst::FormattedSegment::<gst::ClockTime>::new();
+                            let segment = gst::event::Segment::builder(&segment).build();
+                            rtcp_srcpad.push_event(segment);
+                        }
                         if let Err(e) = rtcp_srcpad.push(buffer) {
                             gst::warning!(
                                 CAT,
