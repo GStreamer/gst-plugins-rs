@@ -23,9 +23,10 @@ fn init() {
 #[test]
 fn test_payloader() {
     #[rustfmt::skip]
-    let test_buffers: [(u64, Vec<u8>); 3] = [
+    let test_buffers: [(bool, u64, Vec<u8>); 3] = [
         (
-            0,
+            true, // keyframe
+            0, // pts
             vec![   // this should result in exactly 27 bytes for the RTP payload
                 0b0001_0010, 0,
                 0b0000_1010, 0,
@@ -33,6 +34,7 @@ fn test_payloader() {
                 0b0011_0010, 0b0000_1001, 1, 2, 3, 4, 5, 6, 7, 8, 9,
             ],
         ), (
+            false,
             0,
             vec![   // these all have to go in separate packets since their IDs mismatch
                 0b0011_0010, 0b0000_0100, 1, 2, 3, 4,
@@ -40,6 +42,7 @@ fn test_payloader() {
                 0b0011_0110, 0b0100_1000, 0b0000_0001, 1,
             ],
         ), (
+            false,
             1_000_000_000,
             vec![
                 0b0001_0010, 0,
@@ -109,7 +112,7 @@ fn test_payloader() {
         .build();
     h.set_src_caps(caps);
 
-    for (pts, bytes) in &test_buffers {
+    for (keyframe, pts, bytes) in &test_buffers {
         let mut buffer = Buffer::with_size(bytes.len())
             .unwrap()
             .into_mapped_buffer_writable()
@@ -121,6 +124,13 @@ fn test_payloader() {
             .get_mut()
             .unwrap()
             .set_pts(ClockTime::from_nseconds(*pts));
+
+        if !keyframe {
+            buffer
+                .get_mut()
+                .unwrap()
+                .set_flags(gst::BufferFlags::DELTA_UNIT);
+        }
 
         h.push(buffer).unwrap();
     }
