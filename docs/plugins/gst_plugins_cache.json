@@ -14101,6 +14101,8 @@
             "GstRtp2Session": {
                 "hierarchy": [
                     "GstRtp2Session",
+                    "GstObject",
+                    "GInitiallyUnowned",
                     "GObject"
                 ],
                 "kind": "object",
