@@ -1185,7 +1185,14 @@ impl Transcriber {
                     )
                 };
 
-                let first_pts = self.state.lock().unwrap().first_buffer_pts.unwrap();
+                let mut state = self.state.lock().unwrap();
+
+                if !state.connected {
+                    return Ok(());
+                }
+
+                let first_pts = state.first_buffer_pts.unwrap();
+                let mut messages = vec![];
 
                 match message_type.as_str() {
                     "AddTranslation" => {
@@ -1208,14 +1215,12 @@ impl Transcriber {
                         gst::trace!(
                             CAT,
                             imp = self,
-                            "received translation event, posting message"
+                            "received translation event, queuing message"
                         );
 
-                        let _ = self.obj().post_message(
-                            gst::message::Element::builder(s).src(&*self.obj()).build(),
-                        );
+                        messages.push(gst::message::Element::builder(s).src(&*self.obj()).build());
 
-                        for srcpad in &self.state.lock().unwrap().srcpads {
+                        for srcpad in &state.srcpads {
                             if Some(&translation.language)
                                 != srcpad.imp().settings.lock().unwrap().language_code.as_ref()
                             {
@@ -1245,8 +1250,6 @@ impl Transcriber {
                                 .map(|r| r.alternatives.first())
                                 .is_some()
                         {
-                            let mut state = self.state.lock().unwrap();
-
                             state.n_non_empty_transcripts += 1;
                             if state
                                 .n_non_empty_transcripts
@@ -1268,23 +1271,7 @@ impl Transcriber {
                             }
                         }
 
-                        let s = gst::Structure::builder("speechmatics/raw")
-                            .field("transcript", &*text)
-                            .field("arrival-time", now)
-                            .field("language-code", transcriber_language_code)
-                            .build();
-
-                        gst::trace!(
-                            CAT,
-                            imp = self,
-                            "received transcript event, posting message"
-                        );
-
-                        let _ = self.obj().post_message(
-                            gst::message::Element::builder(s).src(&*self.obj()).build(),
-                        );
-
-                        for srcpad in &self.state.lock().unwrap().srcpads {
+                        for srcpad in &state.srcpads {
                             if srcpad
                                 .imp()
                                 .settings
@@ -1303,9 +1290,23 @@ impl Transcriber {
                                 join_punctuation,
                             );
                         }
+
+                        let s = gst::Structure::builder("speechmatics/raw")
+                            .field("transcript", &*text)
+                            .field("arrival-time", now)
+                            .field("language-code", transcriber_language_code)
+                            .build();
+
+                        gst::trace!(
+                            CAT,
+                            imp = self,
+                            "received transcript event, posting message"
+                        );
+
+                        messages.push(gst::message::Element::builder(s).src(&*self.obj()).build());
                     }
                     "EndOfTranscript" => {
-                        for srcpad in &self.state.lock().unwrap().srcpads {
+                        for srcpad in &state.srcpads {
                             srcpad.imp().enqueue_eos();
                         }
                     }
@@ -1338,9 +1339,7 @@ impl Transcriber {
                             .field("speakers", gst::Array::new(labeled_speakers))
                             .build();
 
-                        let _ = self.obj().post_message(
-                            gst::message::Element::builder(s).src(&*self.obj()).build(),
-                        );
+                        messages.push(gst::message::Element::builder(s).src(&*self.obj()).build());
                     }
                     "AudioEventStarted" => {
                         let audio_event_started: AudioEventStarted = serde_json::from_value(json)
@@ -1363,7 +1362,7 @@ impl Transcriber {
                         )
                         .build();
 
-                        for srcpad in &self.state.lock().unwrap().srcpads {
+                        for srcpad in &state.srcpads {
                             if let Some(ref mut sender) = srcpad.imp().state.lock().unwrap().sender
                             {
                                 let _ = sender.send(TranscriberOutput::Event(event.clone()));
@@ -1391,7 +1390,7 @@ impl Transcriber {
                         )
                         .build();
 
-                        for srcpad in &self.state.lock().unwrap().srcpads {
+                        for srcpad in &state.srcpads {
                             if let Some(ref mut sender) = srcpad.imp().state.lock().unwrap().sender
                             {
                                 let _ = sender.send(TranscriberOutput::Event(event.clone()));
@@ -1410,43 +1409,40 @@ impl Transcriber {
                     )
                 };
 
-                let max_srcpad_delay = self
-                    .state
-                    .lock()
-                    .unwrap()
+                let max_srcpad_delay = state
                     .srcpads
                     .iter()
                     .map(|pad| pad.imp().state.lock().unwrap().observed_max_delay)
-                    .max();
-                if let Some(max_srcpad_delay) = max_srcpad_delay {
-                    let mut do_notify = false;
-                    let mut state = self.state.lock().unwrap();
+                    .max()
+                    .unwrap_or(gst::ClockTime::ZERO);
 
-                    if state.observed_max_delay < max_srcpad_delay {
-                        gst::log!(CAT, imp = self, "new max delay {max_srcpad_delay}");
-                        state.observed_max_delay = max_srcpad_delay;
-                        do_notify = true;
+                let do_notify_max_delay = if state.observed_max_delay < max_srcpad_delay {
+                    state.observed_max_delay = max_srcpad_delay;
+                    true
+                } else {
+                    false
+                };
+
+                drop(state);
+
+                if do_notify_max_delay {
+                    self.obj().notify("max-observed-delay");
+                    if max_srcpad_delay > latency + lateness && upstream_is_live == Some(true) {
+                        let details =
+                            gst::Structure::builder("speechmaticstranscriber/excessive-delay")
+                                .field("new-observed-max-delay", max_srcpad_delay)
+                                .build();
+                        gst::element_warning!(
+                            self.obj(),
+                            gst::CoreError::Clock,
+                            ["Maximum observed delay {} exceeds configured lateness + latency", max_srcpad_delay],
+                            details: details
+                        );
                     }
+                }
 
-                    drop(state);
-
-                    if do_notify {
-                        self.obj().notify("max-observed-delay");
-                        if max_srcpad_delay > latency + lateness {
-                            let details =
-                                gst::Structure::builder("speechmaticstranscriber/excessive-delay")
-                                    .field("new-observed-max-delay", max_srcpad_delay)
-                                    .build();
-                            if upstream_is_live == Some(true) {
-                                gst::element_warning!(
-                                    self.obj(),
-                                    gst::CoreError::Clock,
-                                    ["Maximum observed delay {} exceeds configured lateness + latency", max_srcpad_delay],
-                                    details: details
-                                );
-                            }
-                        }
-                    }
+                for message in messages {
+                    let _ = self.obj().post_message(message);
                 }
 
                 Ok(())
