@@ -95,7 +95,9 @@ if __name__ == "__main__":
     env['PKG_CONFIG_PATH'] = os.pathsep.join(pkg_config_path)
 
     if 'NASM' in env:
-        env['PATH'] = os.pathsep.join([os.path.dirname(env['NASM']), env['PATH']])
+        nasm_dir = os.path.dirname(env['NASM'])
+        if nasm_dir not in env['PATH'].split(os.pathsep):
+            env['PATH'] = os.pathsep.join([nasm_dir, env['PATH']])
 
     rustc_target = None
     if 'RUSTC' in env:
