@@ -249,6 +249,62 @@ fn query_latency(element: &gst::Element) -> Result<gst::ClockTime, Error> {
 }
 
 impl TranscriberBin {
+    fn handle_error_message(&self, msg: gst::Message) {
+        use gst::MessageView;
+
+        let mut s = self.state.lock().unwrap();
+        let Some(state) = s.as_mut() else {
+            drop(s);
+            let _ = self.obj().post_message(msg);
+            return;
+        };
+
+        let MessageView::Error(m) = msg.view() else {
+            unreachable!()
+        };
+
+        let mut errored_pad: Option<super::TranscriberSinkPad> = None;
+        for pad in state.audio_sink_pads.values() {
+            let mut ps = pad.imp().state.lock().unwrap();
+            let Ok(pad_state) = ps.as_mut() else {
+                continue;
+            };
+
+            if msg.src() == pad_state.transcriber.as_ref().map(|t| t.upcast_ref())
+                || msg
+                    .src()
+                    .zip(pad_state.transcriber.clone())
+                    .map(|(src, transcriber)| src.has_ancestor(&transcriber))
+                    .unwrap_or(false)
+            {
+                gst::error!(
+                    CAT,
+                    imp = self,
+                    "Transcriber has posted an error ({m:?}), going back to passthrough",
+                );
+                pad_state.target_passthrough_state = TargetPassthroughState::Enabled;
+                errored_pad = Some(pad.clone());
+                break;
+            }
+        }
+
+        drop(s);
+
+        if let Some(pad) = errored_pad {
+            let warning_message = gst::message::Warning::builder_from_error(m.error())
+                .debug_if_some(m.debug().as_deref())
+                .details_if_some(m.details().map(|s| s.to_owned()))
+                .src(&pad)
+                .build();
+            let _ = self.obj().post_message(warning_message);
+            let s = self.state.lock().unwrap();
+            let ps = pad.imp().state.lock().unwrap();
+            self.block_and_update(pad.imp(), s, ps);
+        } else {
+            self.parent_handle_message(msg);
+        }
+    }
+
     fn configure_transcriber(&self, transcriber: &gst::Element) {
         let settings = self.settings.lock().unwrap();
         let latency_ms = settings.latency.mseconds() as u32;
@@ -3138,58 +3194,10 @@ impl BinImpl for TranscriberBin {
         use gst::MessageView;
 
         match msg.view() {
-            MessageView::Error(m) => {
-                let mut s = self.state.lock().unwrap();
-                let Some(state) = s.as_mut() else {
-                    drop(s);
-                    self.parent_handle_message(msg);
-                    return;
-                };
-                let mut handled = false;
-                for pad in state.audio_sink_pads.values() {
-                    let mut ps = pad.imp().state.lock().unwrap();
-                    let Ok(pad_state) = ps.as_mut() else {
-                        continue;
-                    };
-
-                    if msg.src() == pad_state.transcriber.as_ref().map(|t| t.upcast_ref())
-                        || msg
-                            .src()
-                            .zip(pad_state.transcriber.clone())
-                            .map(|(src, transcriber)| src.has_ancestor(&transcriber))
-                            .unwrap_or(false)
-                    {
-                        gst::error!(
-                            CAT,
-                            imp = self,
-                            "Transcriber has posted an error ({m:?}), going back to passthrough",
-                        );
-                        pad_state.target_passthrough_state = TargetPassthroughState::Enabled;
-                        let pad_weak = pad.downgrade();
-                        let warning_message = gst::message::Warning::builder_from_error(m.error())
-                            .debug_if_some(m.debug().as_deref())
-                            .details_if_some(m.details().map(|s| s.to_owned()))
-                            .src(pad)
-                            .build();
-                        let _ = self.obj().post_message(warning_message);
-                        self.obj().call_async(move |bin| {
-                            let Some(pad) = pad_weak.upgrade() else {
-                                return;
-                            };
-                            let thiz = bin.imp();
-                            let s = thiz.state.lock().unwrap();
-                            let ps = pad.imp().state.lock().unwrap();
-                            thiz.block_and_update(pad.imp(), s, ps);
-                        });
-                        handled = true;
-                        break;
-                    }
-                }
-
-                if !handled {
-                    drop(s);
-                    self.parent_handle_message(msg);
-                }
+            MessageView::Error(_) => {
+                self.obj().call_async(move |bin| {
+                    bin.imp().handle_error_message(msg);
+                });
             }
             _ => self.parent_handle_message(msg),
         }
