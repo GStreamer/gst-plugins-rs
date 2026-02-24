@@ -203,8 +203,9 @@ documentation:
     - git clone --depth 1 https://gitlab.freedesktop.org/gstreamer/gstreamer.git --branch main
     - cd gstreamer
     - ln -s $P subprojects/gst-plugins-rs
+    - export XDG_DATA_DIRS=/usr/local/share/:/usr/share/
     - meson build $MESON_ARGS
-    - ./gst-env.py ninja -C build subprojects/gst-docs/GStreamer-doc
+    - meson devenv --workdir "$PWD" -C build ninja -C build subprojects/gst-docs/GStreamer-doc
     - mv build/subprojects/gst-docs/GStreamer-doc/html $P/documentation/
   artifacts:
     expire_in: '7 days'
