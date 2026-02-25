@@ -391,6 +391,7 @@ coverage:
   needs:
   - "trigger"
   - "test stable"
+  when: 'manual'
   stage: 'extras'
   variables:
     RUSTFLAGS: "-Cinstrument-coverage"
