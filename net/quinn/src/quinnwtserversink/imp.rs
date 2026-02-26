@@ -359,7 +359,9 @@ impl ObjectImpl for QuinnWebTransportServerSink {
             "stats" => {
                 let state = self.state.lock().unwrap();
                 match *state {
-                    State::Started(ref state) => get_stats(Some(state.session.stats())).to_value(),
+                    State::Started(ref state) => {
+                        get_stats(Some((*state.session).stats())).to_value()
+                    }
                     State::Stopped => get_stats(None).to_value(),
                 }
             }
@@ -637,7 +639,7 @@ impl QuinnWebTransportServerSink {
             CAT,
             imp = self,
             "received WebTransport request: {}",
-            request.url()
+            request.url
         );
 
         // FIXME: We now accept all request without verifying the URL
