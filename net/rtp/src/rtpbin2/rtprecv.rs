@@ -761,7 +761,7 @@ impl RecvSessionSrcTask {
 
             // Check whether there's anything else we can do before leaving this blocking task
 
-            if let Ok(Some(cmd)) = self.cmd_rx.try_next() {
+            if let Ok(cmd) = self.cmd_rx.try_recv() {
                 if Self::handle_cmd(&mut jb_streams, cmd).is_break() {
                     return ControlFlow::Break(self);
                 }

@@ -1585,13 +1585,13 @@ mod tests {
         );
 
         // handle_item not reached
-        assert!(handle_item_ready_receiver.try_next().is_err());
+        assert!(handle_item_ready_receiver.try_recv().is_err());
         // try_next not reached again
-        assert!(try_next_ready_receiver.try_next().is_err());
+        assert!(try_next_ready_receiver.try_recv().is_err());
 
         gst::debug!(
             RUNTIME_CAT,
-            "nominal: starting (after pause cancelling try_next)"
+            "nominal: starting (after pause cancelling try_recv)"
         );
         let start_receiver = task.start().check().unwrap();
         block_on(started_receiver.next()).unwrap();
@@ -1627,7 +1627,7 @@ mod tests {
         );
 
         // try_next not reached again
-        assert!(try_next_ready_receiver.try_next().is_err());
+        assert!(try_next_ready_receiver.try_recv().is_err());
 
         gst::debug!(
             RUNTIME_CAT,
@@ -1657,7 +1657,7 @@ mod tests {
         let _ = block_on(stopped_receiver.next());
 
         // purge remaining iteration received before stop if any
-        let _ = try_next_ready_receiver.try_next();
+        let _ = try_next_ready_receiver.try_recv();
 
         gst::debug!(RUNTIME_CAT, "nominal: starting (after stop)");
         assert_eq!(
@@ -2818,7 +2818,7 @@ mod tests {
         block_on(flush_stop_receiver.next());
 
         // start action not executed
-        started_receiver.try_next().unwrap_err();
+        started_receiver.try_recv().unwrap_err();
 
         gst::debug!(RUNTIME_CAT, "pause_flush_start: starting after flushing");
         assert_eq!(
@@ -2922,7 +2922,7 @@ mod tests {
         assert_eq!(task.state(), Flushing);
 
         // start action not executed
-        started_receiver.try_next().unwrap_err();
+        started_receiver.try_recv().unwrap_err();
 
         gst::debug!(RUNTIME_CAT, "pause_flushing_start: stopping flush");
         assert_eq!(

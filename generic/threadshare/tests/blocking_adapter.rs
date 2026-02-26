@@ -186,7 +186,7 @@ fn without_adapter() {
     // wait a bit in order to make sure it is handled
     thread::sleep(Duration::from_millis(20));
     // result not available yet
-    assert!(res_rx.try_next().is_err());
+    assert!(res_rx.try_recv().is_err());
 
     // Spawn a concurrent task on the ts-context
     let mut ts_task_handle = ts_ctx.spawn(futures::future::ready(42));
@@ -199,7 +199,7 @@ fn without_adapter() {
     assert!(ts_task_handle.poll_unpin(&mut cx).is_pending());
 
     // 3d buffer handling result still not available
-    assert!(res_rx.try_next().is_err());
+    assert!(res_rx.try_recv().is_err());
 
     println!("Pulling 2d buffer => unblocking");
     appsink
@@ -305,7 +305,7 @@ fn with_adapter() {
     // wait a bit in order to make sure it is handled
     thread::sleep(Duration::from_millis(20));
     // result not available yet
-    assert!(res_rx.try_next().is_err());
+    assert!(res_rx.try_recv().is_err());
 
     // Spawn a concurrent task on the ts-context
     let ts_task_handle = ts_ctx.spawn(futures::future::ready(42));
@@ -315,7 +315,7 @@ fn with_adapter() {
     assert_eq!(block_on(ts_task_handle).unwrap(), 42);
 
     // 3d buffer handling result still not available
-    assert!(res_rx.try_next().is_err());
+    assert!(res_rx.try_recv().is_err());
 
     println!("Pulling 2d buffer => unblocking");
     appsink

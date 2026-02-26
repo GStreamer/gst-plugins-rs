@@ -1484,13 +1484,7 @@ impl TranslationPadTask {
             .as_mut()
             .expect("from_translation chan must be available in translation mode");
 
-        while let Ok(translation) = from_translate_rx.try_next() {
-            let Some(translation) = translation else {
-                const ERR: &str = "translation chan terminated";
-                gst::debug!(CAT, imp = self.pad, "{ERR}");
-                return Err(gst::error_msg!(gst::StreamError::Failed, ["{ERR}"]));
-            };
-
+        while let Ok(translation) = from_translate_rx.try_recv() {
             if let Some(pts) = translation.items.first().map(|i| i.pts) {
                 self.unsynced = Some(
                     serde_json::json!({
