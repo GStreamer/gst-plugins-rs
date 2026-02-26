@@ -674,15 +674,9 @@ impl TranscriberSrcPad {
 
                     let draining = transcriber.imp().state.lock().unwrap().draining;
 
-                    if !draining
-                        && !self
-                            .obj()
-                            .push_event(gst::event::Eos::builder().seqnum(seqnum).build())
-                    {
-                        return Err(gst::error_msg!(
-                            gst::StreamError::Failed,
-                            ["failed to push EOS"]
-                        ));
+                    if !draining {
+                        self.obj()
+                            .push_event(gst::event::Eos::builder().seqnum(seqnum).build());
                     }
 
                     Ok(())
@@ -964,10 +958,7 @@ impl Transcriber {
                     let sev = gst::event::StreamStart::builder("transcription")
                         .seqnum(e.seqnum())
                         .build();
-                    if !srcpad.push_event(sev) {
-                        gst::error!(CAT, obj = srcpad, "Failed to push stream start event");
-                        return false;
-                    }
+                    srcpad.push_event(sev);
                 }
                 true
             }
