@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html),
 specifically the [variant used by Rust](http://doc.crates.io/manifest.html#the-version-field).
 
+## [0.15.1] - 2026-02-28
+### Fixed
+- Don't convert push_event() false returns into flow errors.
+- rtp: rtprecv: Send mandatory events on the RTCP srcpad before buffers.
+- rtp: rtpav1pay: Insert sequence header if a keyframe is missing it.
+- speechmaticstranscriber: Fix first buffer PTS race condition.
+
 ## [0.15.0] - 2026-02-21
 ### Fixed
 - audiornnoise: Fix audio level value reporting.
@@ -1025,7 +1032,8 @@ specifically the [variant used by Rust](http://doc.crates.io/manifest.html#the-v
 - webrtcsink: Make the `turn-server` property a `turn-servers` list
 - webrtcsink: Move from async-std to tokio
 
-[Unreleased]: https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs/compare/0.15.0...HEAD
+[Unreleased]: https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs/compare/0.15.1...HEAD
+[0.15.1]: https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs/compare/0.15.0...0.15.1
 [0.15.0]: https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs/compare/0.14.4...0.15.0
 [0.14.5]: https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs/compare/0.14.4...0.14.5
 [0.14.4]: https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs/compare/0.14.3...0.14.4
