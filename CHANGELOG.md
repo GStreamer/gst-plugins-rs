@@ -5,6 +5,37 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html),
 specifically the [variant used by Rust](http://doc.crates.io/manifest.html#the-version-field).
 
+## [0.14.5] - 2026-02-28
+### Fixed
+- audiornnoise: Fix audio level value reporting.
+- awspolly: Fix various panics.
+- dav1ddec: Various fix to allocation query handling.
+- gtk4paintablesink: Fix odd-size subsampling workaround.
+- isobmff: fmp4: Don't overlap durations on fragment header buffers.
+- livesync: Ignore upstream latency when upstream is not live.
+- rtp: basepay: Consider size of header extensions in maximum payload size
+  calculation.
+- rtp: rtprecv: Don't panic if no buffers of a bufferlist can be directly forwarded
+- rtp: rtprecv: Send mandatory events on the RTCP srcpad before buffers.
+- rtp: smpte291: Use video media type instead of application.
+- rtp: smpte291: Use upper-case encoding-name.
+- rtp: smpte291: Drop the current packet after processing if it was empty.
+- speechmaticstranscriber: Fix handling of diarization=none.
+- st2038combiner: Various minor fixes.
+- transcriberbin: Fix latency reporting in various situations.
+- webrtcsink: Don't upscale when mitigating low bitrate.
+- webrtcsink: Handle NVIDIA encoder interfaces changes between versions / platforms.
+- webrtc: Only register data channels for internal use.
+
+### Added
+- gtk4paintablesink: Propose udmabuf allocator/pool if possible.
+- gtk4paintablesink: New property for configuration window-resize behaviour.
+- st2038extractor: Add `always-add-st2038-pad` property.
+- threadshare: ts-udpsink: Allow disabling IPv4 or IPv6 socket.
+
+### Changed
+- gtk4: Require at least GStreamer 1.18 instead of 1.16.
+
 ## [0.14.4] - 2025-12-02
 ### Fixed
 - analyticssplitter / combiner: Update to latest batch meta API.
@@ -888,7 +919,8 @@ specifically the [variant used by Rust](http://doc.crates.io/manifest.html#the-v
 - webrtcsink: Make the `turn-server` property a `turn-servers` list
 - webrtcsink: Move from async-std to tokio
 
-[Unreleased]: https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs/compare/0.14.4...HEAD
+[Unreleased]: https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs/compare/0.14.5...HEAD
+[0.14.5]: https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs/compare/0.14.4...0.14.5
 [0.14.4]: https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs/compare/0.14.3...0.14.4
 [0.14.3]: https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs/compare/0.14.2...0.14.3
 [0.14.2]: https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs/compare/0.14.1...0.14.2
