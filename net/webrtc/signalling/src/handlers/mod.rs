@@ -76,7 +76,7 @@ impl Handler {
         peer_id: &str,
         msg: p::IncomingMessage,
     ) -> Result<(), Error> {
-        let ret = match msg {
+        let ret = match &msg {
             p::IncomingMessage::NewPeer => {
                 self.peers.insert(peer_id.to_string(), Default::default());
                 self.items.push_back((
@@ -95,20 +95,23 @@ impl Handler {
             p::IncomingMessage::Peer(peermsg) => self.handle_peer_message(peer_id, peermsg),
             p::IncomingMessage::List => self.list_producers(peer_id),
             p::IncomingMessage::ListConsumers => self.list_consumers(peer_id),
-            p::IncomingMessage::EndSession(msg) => self.end_session(peer_id, &msg.session_id),
+            p::IncomingMessage::EndSession(msg) => self.end_session(peer_id, &msg.session_id, None),
+            p::IncomingMessage::EndSessionV1_1(msg) => self.end_session(peer_id, &msg.session_id, msg.error.as_ref()),
             p::IncomingMessage::SetProtocolVersion(version) => {
                 self.set_peer_protocol_version(peer_id, version)
             }
         };
 
-        if let Some(peer) = self.peers.get_mut(peer_id) {
-            peer.received_first_message = true;
+        if !matches!(msg, p::IncomingMessage::NewPeer) {
+            if let Some(peer) = self.peers.get_mut(peer_id) {
+                peer.received_first_message = true;
+            }
         }
 
         ret
     }
 
-    fn handle_peer_message(&mut self, peer_id: &str, peermsg: p::PeerMessage) -> Result<(), Error> {
+    fn handle_peer_message(&mut self, peer_id: &str, peermsg: &p::PeerMessage) -> Result<(), Error> {
         let session_id = &peermsg.session_id;
 
         let Some(session) = self.sessions.get(session_id) else {
@@ -144,7 +147,7 @@ impl Handler {
     fn stop_producer(&mut self, peer_id: &str) {
         if let Some(session_ids) = self.producer_sessions.remove(peer_id) {
             for session_id in session_ids {
-                if let Err(e) = self.end_session(peer_id, &session_id) {
+                if let Err(e) = self.end_session(peer_id, &session_id, None) {
                     error!("Could not end session {session_id}: {e:?}");
                 }
             }
@@ -154,7 +157,7 @@ impl Handler {
     fn stop_consumer(&mut self, peer_id: &str) {
         if let Some(session_ids) = self.consumer_sessions.remove(peer_id) {
             for session_id in session_ids {
-                if let Err(e) = self.end_session(peer_id, &session_id) {
+                if let Err(e) = self.end_session(peer_id, &session_id, None) {
                     error!("Could not end session {session_id}: {e:?}");
                 }
             }
@@ -189,7 +192,7 @@ impl Handler {
 
     #[instrument(level = "debug", skip(self))]
     /// End a session between two peers
-    fn end_session(&mut self, peer_id: &str, session_id: &str) -> Result<(), Error> {
+    fn end_session(&mut self, peer_id: &str, session_id: &str, error: Option<&String>) -> Result<(), Error> {
         let Some(session) = self.sessions.remove(session_id) else {
             warn!(
                 peer_id,
@@ -197,6 +200,15 @@ impl Handler {
             );
             return Ok(());
         };
+
+        if let Some(protocol_version) = self.peers.get(peer_id).map(|p| p.protocol_version.clone()) {
+            if error.is_some() && protocol_version < p::ProtocolVersion::V1_1 {
+                bail!(
+                    "Invalid end session message with error from peer '{}', minimum protocol version is 1.1",
+                    peer_id
+                );
+            }
+        }
 
         self.consumer_sessions
             .entry(session.consumer.clone())
@@ -210,12 +222,24 @@ impl Handler {
                 sessions.remove(session_id);
             });
 
-        self.items.push_back((
-            session.other_peer_id(peer_id)?.to_string(),
-            p::OutgoingMessage::EndSession(p::EndSessionMessage {
-                session_id: session_id.to_string(),
-            }),
-        ));
+        let other_peer_id = session.other_peer_id(peer_id)?;
+
+        if self.peers.get(other_peer_id).map(|p| p.protocol_version.clone()) < Some(gst_plugin_webrtc_protocol::ProtocolVersion::V1_1) {
+            self.items.push_back((
+                other_peer_id.to_string(),
+                p::OutgoingMessage::EndSession(p::EndSessionMessage {
+                    session_id: session_id.to_string(),
+                }),
+            ));
+        } else {
+            self.items.push_back((
+                other_peer_id.to_string(),
+                p::OutgoingMessage::EndSessionV1_1(p::EndSessionMessageV1_1 {
+                    session_id: session_id.to_string(),
+                    error: error.map(|s| s.to_owned())
+                }),
+            ));
+        }
 
         Ok(())
     }
@@ -326,7 +350,7 @@ impl Handler {
     fn set_peer_protocol_version(
         &mut self,
         peer_id: &str,
-        version: p::ProtocolVersion,
+        version: &p::ProtocolVersion,
     ) -> Result<(), Error> {
         let peer = self
             .peers
@@ -340,7 +364,7 @@ impl Handler {
             );
         }
 
-        peer.protocol_version = version;
+        peer.protocol_version = version.clone();
 
         Ok(())
     }
@@ -879,6 +903,201 @@ mod tests {
         assert_eq!(
             sent_message,
             p::OutgoingMessage::EndSession(p::EndSessionMessage { session_id })
+        );
+    }
+
+    #[tokio::test]
+    async fn test_end_session_v1_1_wrong_protocol() {
+        let (mut tx, rx) = mpsc::unbounded();
+        let mut handler = Handler::new(Box::pin(rx));
+
+        new_peer(&mut tx, &mut handler, "producer").await;
+
+        let message = p::IncomingMessage::SetPeerStatus(p::PeerStatus {
+            roles: vec![p::PeerRole::Producer],
+            meta: None,
+            peer_id: None,
+        });
+        tx.send(("producer".to_string(), Some(message)))
+            .await
+            .unwrap();
+
+        new_peer(&mut tx, &mut handler, "consumer").await;
+
+        let message = p::IncomingMessage::StartSession(p::StartSessionMessage {
+            peer_id: "producer".to_string(),
+            offer: None,
+        });
+        tx.send(("consumer".to_string(), Some(message)))
+            .await
+            .unwrap();
+        let (peer_id, sent_message) = handler.next().await.unwrap();
+        assert_eq!(peer_id, "consumer");
+        let session_id = match sent_message {
+            p::OutgoingMessage::SessionStarted {
+                ref peer_id,
+                ref session_id,
+            } => {
+                assert_eq!(peer_id, "producer");
+                session_id.to_string()
+            }
+            _ => panic!("SessionStarted message missing"),
+        };
+
+        let _ = handler.next().await.unwrap();
+
+        let message = p::IncomingMessage::EndSessionV1_1(p::EndSessionMessageV1_1 {
+            session_id: session_id.clone(),
+            error: Some("an error happened".to_string())
+        });
+        tx.send(("producer".to_string(), Some(message)))
+            .await
+            .unwrap();
+        let (peer_id, sent_message) = handler.next().await.unwrap();
+
+        assert_eq!(peer_id, "producer");
+        assert_eq!(
+            sent_message,
+            p::OutgoingMessage::Error {
+                details: "Invalid end session message with error from peer 'producer', minimum protocol version is 1.1"
+                    .into()
+            }
+        );
+    }
+
+    #[tokio::test]
+    async fn test_end_session_v1_1_old_peer() {
+        let (mut tx, rx) = mpsc::unbounded();
+        let mut handler = Handler::new(Box::pin(rx));
+
+        new_peer(&mut tx, &mut handler, "producer").await;
+
+        let message = p::IncomingMessage::SetProtocolVersion(p::ProtocolVersion::V1_1);
+        tx.send(("producer".to_string(), Some(message)))
+            .await
+            .unwrap();
+
+        let message = p::IncomingMessage::SetPeerStatus(p::PeerStatus {
+            roles: vec![p::PeerRole::Producer],
+            meta: None,
+            peer_id: None,
+        });
+        tx.send(("producer".to_string(), Some(message)))
+            .await
+            .unwrap();
+
+        new_peer(&mut tx, &mut handler, "consumer").await;
+
+        let message = p::IncomingMessage::StartSession(p::StartSessionMessage {
+            peer_id: "producer".to_string(),
+            offer: None,
+        });
+        tx.send(("consumer".to_string(), Some(message)))
+            .await
+            .unwrap();
+        let (peer_id, sent_message) = handler.next().await.unwrap();
+        assert_eq!(peer_id, "consumer");
+        let session_id = match sent_message {
+            p::OutgoingMessage::SessionStarted {
+                ref peer_id,
+                ref session_id,
+            } => {
+                assert_eq!(peer_id, "producer");
+                session_id.to_string()
+            }
+            _ => panic!("SessionStarted message missing"),
+        };
+
+        let _ = handler.next().await.unwrap();
+
+        let message = p::IncomingMessage::EndSessionV1_1(p::EndSessionMessageV1_1 {
+            session_id: session_id.clone(),
+            error: Some("an error happened".to_string())
+        });
+        tx.send(("producer".to_string(), Some(message)))
+            .await
+            .unwrap();
+        let (peer_id, sent_message) = handler.next().await.unwrap();
+
+        assert_eq!(peer_id, "consumer");
+        assert_eq!(
+            sent_message,
+            p::OutgoingMessage::EndSession(
+                p::EndSessionMessage {
+                    session_id,
+                }
+            )
+        );
+    }
+
+    #[tokio::test]
+    async fn test_end_session_v1_1_new_peer() {
+        let (mut tx, rx) = mpsc::unbounded();
+        let mut handler = Handler::new(Box::pin(rx));
+
+        new_peer(&mut tx, &mut handler, "producer").await;
+
+        let message = p::IncomingMessage::SetProtocolVersion(p::ProtocolVersion::V1_1);
+        tx.send(("producer".to_string(), Some(message)))
+            .await
+            .unwrap();
+
+        let message = p::IncomingMessage::SetPeerStatus(p::PeerStatus {
+            roles: vec![p::PeerRole::Producer],
+            meta: None,
+            peer_id: None,
+        });
+        tx.send(("producer".to_string(), Some(message)))
+            .await
+            .unwrap();
+
+        new_peer(&mut tx, &mut handler, "consumer").await;
+
+        let message = p::IncomingMessage::SetProtocolVersion(p::ProtocolVersion::V1_1);
+        tx.send(("consumer".to_string(), Some(message)))
+            .await
+            .unwrap();
+
+        let message = p::IncomingMessage::StartSession(p::StartSessionMessage {
+            peer_id: "producer".to_string(),
+            offer: None,
+        });
+        tx.send(("consumer".to_string(), Some(message)))
+            .await
+            .unwrap();
+        let (peer_id, sent_message) = handler.next().await.unwrap();
+        assert_eq!(peer_id, "consumer");
+        let session_id = match sent_message {
+            p::OutgoingMessage::SessionStarted {
+                ref peer_id,
+                ref session_id,
+            } => {
+                assert_eq!(peer_id, "producer");
+                session_id.to_string()
+            }
+            _ => panic!("SessionStarted message missing"),
+        };
+
+        let _ = handler.next().await.unwrap();
+
+        let message = p::IncomingMessage::EndSessionV1_1(p::EndSessionMessageV1_1 {
+            session_id: session_id.clone(),
+            error: Some("an error happened".to_string())
+        });
+        tx.send(("producer".to_string(), Some(message)))
+            .await
+            .unwrap();
+        let (peer_id, sent_message) = handler.next().await.unwrap();
+
+        assert_eq!(peer_id, "consumer");
+        assert_eq!(
+            sent_message,
+            p::OutgoingMessage::EndSessionV1_1(
+                p::EndSessionMessageV1_1 {
+                    session_id,
+                    error: Some("an error happened".to_string())
+                }
+            )
         );
     }
 

@@ -33,6 +33,9 @@ pub enum OutgoingMessage {
     SessionStarted { peer_id: String, session_id: String },
     /// Signals that the session the peer was in was ended
     EndSession(EndSessionMessage),
+    /// Signals that the session the peer was in was ended with an optional error message.
+    /// Protocol version >= 1.1
+    EndSessionV1_1(EndSessionMessageV1_1),
     /// Messages directly forwarded from one peer to another
     Peer(PeerMessage),
     /// Provides the current list of producers
@@ -143,14 +146,24 @@ pub struct EndSessionMessage {
     pub session_id: String,
 }
 
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+/// End a session
+pub struct EndSessionMessageV1_1 {
+    /// The identifier of the session to end
+    pub session_id: String,
+    /// The error message, if any
+    pub error: Option<String>,
+}
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 #[serde(tag = "version")]
 #[serde(rename_all = "camelCase")]
 #[derive(Default)]
 pub enum ProtocolVersion {
     #[default]
     V1_0,
+    V1_1,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -169,6 +182,8 @@ pub enum IncomingMessage {
     StartSession(StartSessionMessage),
     /// End an existing session
     EndSession(EndSessionMessage),
+    /// End an existing session with an optional error message. Protocol version >= 1.1
+    EndSessionV1_1(EndSessionMessageV1_1),
     /// Send a message to a peer the sender is currently in session with
     Peer(PeerMessage),
     /// Retrieve the current list of producers
