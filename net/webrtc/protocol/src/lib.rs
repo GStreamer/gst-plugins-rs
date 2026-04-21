@@ -143,11 +143,24 @@ pub struct EndSessionMessage {
     pub session_id: String,
 }
 
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(tag = "version")]
+#[serde(rename_all = "camelCase")]
+#[derive(Default)]
+pub enum ProtocolVersion {
+    #[default]
+    V1_0,
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "type")]
 #[serde(rename_all = "camelCase")]
 /// Messages received by the server from peers
 pub enum IncomingMessage {
+    /// Select the protocol version. May be sent only once as the first message
+    /// from the peer to the server, if not sent initial version is assumed
+    SetProtocolVersion(ProtocolVersion),
     /// Internal message to let know about new peers
     NewPeer,
     /// Set current peer status

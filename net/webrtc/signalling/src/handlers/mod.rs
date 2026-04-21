@@ -22,6 +22,13 @@ struct Session {
     consumer: PeerId,
 }
 
+#[derive(Default)]
+struct Peer {
+    status: PeerStatus,
+    received_first_message: bool,
+    protocol_version: p::ProtocolVersion,
+}
+
 impl Session {
     fn other_peer_id(&self, id: &str) -> Result<&str, Error> {
         if self.producer == id {
@@ -40,7 +47,7 @@ pin_project! {
         #[pin]
         stream: Pin<Box<dyn Stream<Item=(String, Option<p::IncomingMessage>)> + Send>>,
         items: VecDeque<(String, p::OutgoingMessage)>,
-        peers: HashMap<PeerId, PeerStatus>,
+        peers: HashMap<PeerId, Peer>,
         sessions: HashMap<String, Session>,
         consumer_sessions: HashMap<String, HashSet<String>>,
         producer_sessions: HashMap<String, HashSet<String>>,
@@ -69,7 +76,7 @@ impl Handler {
         peer_id: &str,
         msg: p::IncomingMessage,
     ) -> Result<(), Error> {
-        match msg {
+        let ret = match msg {
             p::IncomingMessage::NewPeer => {
                 self.peers.insert(peer_id.to_string(), Default::default());
                 self.items.push_back((
@@ -89,7 +96,16 @@ impl Handler {
             p::IncomingMessage::List => self.list_producers(peer_id),
             p::IncomingMessage::ListConsumers => self.list_consumers(peer_id),
             p::IncomingMessage::EndSession(msg) => self.end_session(peer_id, &msg.session_id),
+            p::IncomingMessage::SetProtocolVersion(version) => {
+                self.set_peer_protocol_version(peer_id, version)
+            }
+        };
+
+        if let Some(peer) = self.peers.get_mut(peer_id) {
+            peer.received_first_message = true;
         }
+
+        ret
     }
 
     fn handle_peer_message(&mut self, peer_id: &str, peermsg: p::PeerMessage) -> Result<(), Error> {
@@ -150,7 +166,7 @@ impl Handler {
     fn remove_peer(&mut self, peer_id: &str) {
         info!(peer_id = %peer_id, "removing peer");
         let peer_status = match self.peers.remove(peer_id) {
-            Some(peer_status) => peer_status,
+            Some(peer) => peer.status,
             _ => return,
         };
 
@@ -158,7 +174,7 @@ impl Handler {
         self.stop_consumer(peer_id);
 
         for (id, p) in self.peers.iter() {
-            if !p.listening() {
+            if !p.status.listening() {
                 continue;
             }
 
@@ -211,9 +227,9 @@ impl Handler {
         self.peers
             .iter()
             .filter_map(move |(peer_id, peer)| {
-                filter(peer).then_some(p::Peer {
+                filter(&peer.status).then_some(p::Peer {
                     id: peer_id.clone(),
-                    meta: peer.meta.clone(),
+                    meta: peer.status.meta.clone(),
                 })
             })
             .collect()
@@ -248,12 +264,14 @@ impl Handler {
     /// Register peer as a producer
     #[instrument(level = "debug", skip(self))]
     fn set_peer_status(&mut self, peer_id: &str, status: &p::PeerStatus) -> Result<(), Error> {
-        let old_status = self
+        let old_peer = self
             .peers
             .get(peer_id)
             .context(anyhow!("Peer '{peer_id}' hasn't been welcomed"))?;
 
-        if status == old_status {
+        let protocol_version = old_peer.protocol_version.clone();
+
+        if *status == old_peer.status {
             info!("Status for '{}' hasn't changed", peer_id);
 
             return Ok(());
@@ -266,17 +284,25 @@ impl Handler {
             );
         }
 
-        if old_status.producing() && !status.producing() {
+        if old_peer.status.producing() && !status.producing() {
             self.stop_producer(peer_id);
-        } else if old_status.consuming() && !status.consuming() {
+        } else if old_peer.status.consuming() && !status.consuming() {
             self.stop_consumer(peer_id);
         }
 
         let mut status = status.clone();
         status.peer_id = Some(peer_id.to_string());
-        self.peers.insert(peer_id.to_string(), status.clone());
+        self.peers.insert(
+            peer_id.to_string(),
+            Peer {
+                protocol_version,
+                received_first_message: false,
+                status: status.clone(),
+            },
+        );
+
         for (id, peer) in &self.peers {
-            if !peer.listening() {
+            if !peer.status.listening() {
                 continue;
             }
 
@@ -291,6 +317,30 @@ impl Handler {
         }
 
         info!(peer_id = %peer_id, "registered as {:?}", status.roles);
+
+        Ok(())
+    }
+
+    /// Select protocol version for peer
+    #[instrument(level = "debug", skip(self))]
+    fn set_peer_protocol_version(
+        &mut self,
+        peer_id: &str,
+        version: p::ProtocolVersion,
+    ) -> Result<(), Error> {
+        let peer = self
+            .peers
+            .get_mut(peer_id)
+            .context(anyhow!("Peer '{peer_id}' hasn't been welcomed"))?;
+
+        if peer.received_first_message {
+            bail!(
+                "Protocol version selection for peer '{}' must be first message",
+                peer_id
+            );
+        }
+
+        peer.protocol_version = version;
 
         Ok(())
     }
@@ -312,17 +362,17 @@ impl Handler {
             .get(to_id)
             .ok_or_else(|| anyhow!("Peer with ID '{}' not found", to_id))?;
 
-        let (producer_id, consumer_id) = if to.producing() {
+        let (producer_id, consumer_id) = if to.status.producing() {
             (to_id, from_id)
-        } else if to.consuming() {
+        } else if to.status.consuming() {
             (from_id, to_id)
         } else {
             bail!(
                 "Missing a producer or a consumer: id {} roles {:?}, id {} roles {:?}",
                 from_id,
-                from.roles,
+                from.status.roles,
                 to_id,
-                to.roles
+                to.status.roles
             );
         };
 
@@ -1338,6 +1388,35 @@ mod tests {
         };
 
         assert_ne!(session0_id, session1_id);
+    }
+
+    #[tokio::test]
+    async fn test_protocol_version() {
+        let (mut tx, rx) = mpsc::unbounded();
+        let mut handler = Handler::new(Box::pin(rx));
+
+        new_peer(&mut tx, &mut handler, "producer").await;
+
+        let message = p::IncomingMessage::SetProtocolVersion(p::ProtocolVersion::V1_0);
+        tx.send(("producer".to_string(), Some(message)))
+            .await
+            .unwrap();
+
+        let message = p::IncomingMessage::SetProtocolVersion(p::ProtocolVersion::V1_0);
+        tx.send(("producer".to_string(), Some(message)))
+            .await
+            .unwrap();
+
+        let (peer_id, sent_message) = handler.next().await.unwrap();
+
+        assert_eq!(peer_id, "producer");
+        assert_eq!(
+            sent_message,
+            p::OutgoingMessage::Error {
+                details: "Protocol version selection for peer 'producer' must be first message"
+                    .into()
+            }
+        );
     }
 
     #[tokio::test]
