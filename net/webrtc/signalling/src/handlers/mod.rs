@@ -88,7 +88,7 @@ impl Handler {
 
                 Ok(())
             }
-            p::IncomingMessage::SetPeerStatus(status) => self.set_peer_status(peer_id, &status),
+            p::IncomingMessage::SetPeerStatus(status) => self.set_peer_status(peer_id, status),
             p::IncomingMessage::StartSession(message) => {
                 self.start_session(peer_id, &message.peer_id, message.offer.as_deref())
             }
@@ -96,22 +96,28 @@ impl Handler {
             p::IncomingMessage::List => self.list_producers(peer_id),
             p::IncomingMessage::ListConsumers => self.list_consumers(peer_id),
             p::IncomingMessage::EndSession(msg) => self.end_session(peer_id, &msg.session_id, None),
-            p::IncomingMessage::EndSessionV1_1(msg) => self.end_session(peer_id, &msg.session_id, msg.error.as_ref()),
+            p::IncomingMessage::EndSessionV1_1(msg) => {
+                self.end_session(peer_id, &msg.session_id, msg.error.as_ref())
+            }
             p::IncomingMessage::SetProtocolVersion(version) => {
                 self.set_peer_protocol_version(peer_id, version)
             }
         };
 
-        if !matches!(msg, p::IncomingMessage::NewPeer) {
-            if let Some(peer) = self.peers.get_mut(peer_id) {
-                peer.received_first_message = true;
-            }
+        if !matches!(msg, p::IncomingMessage::NewPeer)
+            && let Some(peer) = self.peers.get_mut(peer_id)
+        {
+            peer.received_first_message = true;
         }
 
         ret
     }
 
-    fn handle_peer_message(&mut self, peer_id: &str, peermsg: &p::PeerMessage) -> Result<(), Error> {
+    fn handle_peer_message(
+        &mut self,
+        peer_id: &str,
+        peermsg: &p::PeerMessage,
+    ) -> Result<(), Error> {
         let session_id = &peermsg.session_id;
 
         let Some(session) = self.sessions.get(session_id) else {
@@ -192,7 +198,12 @@ impl Handler {
 
     #[instrument(level = "debug", skip(self))]
     /// End a session between two peers
-    fn end_session(&mut self, peer_id: &str, session_id: &str, error: Option<&String>) -> Result<(), Error> {
+    fn end_session(
+        &mut self,
+        peer_id: &str,
+        session_id: &str,
+        error: Option<&String>,
+    ) -> Result<(), Error> {
         let Some(session) = self.sessions.remove(session_id) else {
             warn!(
                 peer_id,
@@ -201,13 +212,14 @@ impl Handler {
             return Ok(());
         };
 
-        if let Some(protocol_version) = self.peers.get(peer_id).map(|p| p.protocol_version.clone()) {
-            if error.is_some() && protocol_version < p::ProtocolVersion::V1_1 {
-                bail!(
-                    "Invalid end session message with error from peer '{}', minimum protocol version is 1.1",
-                    peer_id
-                );
-            }
+        if let Some(protocol_version) = self.peers.get(peer_id).map(|p| p.protocol_version.clone())
+            && error.is_some()
+            && protocol_version < p::ProtocolVersion::V1_1
+        {
+            bail!(
+                "Invalid end session message with error from peer '{}', minimum protocol version is 1.1",
+                peer_id
+            );
         }
 
         self.consumer_sessions
@@ -224,7 +236,12 @@ impl Handler {
 
         let other_peer_id = session.other_peer_id(peer_id)?;
 
-        if self.peers.get(other_peer_id).map(|p| p.protocol_version.clone()) < Some(gst_plugin_webrtc_protocol::ProtocolVersion::V1_1) {
+        if self
+            .peers
+            .get(other_peer_id)
+            .map(|p| p.protocol_version.clone())
+            < Some(gst_plugin_webrtc_protocol::ProtocolVersion::V1_1)
+        {
             self.items.push_back((
                 other_peer_id.to_string(),
                 p::OutgoingMessage::EndSession(p::EndSessionMessage {
@@ -236,7 +253,7 @@ impl Handler {
                 other_peer_id.to_string(),
                 p::OutgoingMessage::EndSessionV1_1(p::EndSessionMessageV1_1 {
                     session_id: session_id.to_string(),
-                    error: error.map(|s| s.to_owned())
+                    error: error.map(|s| s.to_owned()),
                 }),
             ));
         }
@@ -948,7 +965,7 @@ mod tests {
 
         let message = p::IncomingMessage::EndSessionV1_1(p::EndSessionMessageV1_1 {
             session_id: session_id.clone(),
-            error: Some("an error happened".to_string())
+            error: Some("an error happened".to_string()),
         });
         tx.send(("producer".to_string(), Some(message)))
             .await
@@ -1012,7 +1029,7 @@ mod tests {
 
         let message = p::IncomingMessage::EndSessionV1_1(p::EndSessionMessageV1_1 {
             session_id: session_id.clone(),
-            error: Some("an error happened".to_string())
+            error: Some("an error happened".to_string()),
         });
         tx.send(("producer".to_string(), Some(message)))
             .await
@@ -1022,11 +1039,7 @@ mod tests {
         assert_eq!(peer_id, "consumer");
         assert_eq!(
             sent_message,
-            p::OutgoingMessage::EndSession(
-                p::EndSessionMessage {
-                    session_id,
-                }
-            )
+            p::OutgoingMessage::EndSession(p::EndSessionMessage { session_id })
         );
     }
 
@@ -1082,7 +1095,7 @@ mod tests {
 
         let message = p::IncomingMessage::EndSessionV1_1(p::EndSessionMessageV1_1 {
             session_id: session_id.clone(),
-            error: Some("an error happened".to_string())
+            error: Some("an error happened".to_string()),
         });
         tx.send(("producer".to_string(), Some(message)))
             .await
@@ -1092,12 +1105,10 @@ mod tests {
         assert_eq!(peer_id, "consumer");
         assert_eq!(
             sent_message,
-            p::OutgoingMessage::EndSessionV1_1(
-                p::EndSessionMessageV1_1 {
-                    session_id,
-                    error: Some("an error happened".to_string())
-                }
-            )
+            p::OutgoingMessage::EndSessionV1_1(p::EndSessionMessageV1_1 {
+                session_id,
+                error: Some("an error happened".to_string())
+            })
         );
     }
 

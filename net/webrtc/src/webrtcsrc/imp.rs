@@ -336,6 +336,7 @@ struct SignallerSignals {
     error: glib::SignalHandlerId,
     session_started: glib::SignalHandlerId,
     session_ended: glib::SignalHandlerId,
+    session_ended_with_error: glib::SignalHandlerId,
     request_meta: glib::SignalHandlerId,
     session_description: glib::SignalHandlerId,
     handle_ice: glib::SignalHandlerId,
@@ -1756,6 +1757,38 @@ impl BaseWebRTCSrc {
                                     " Failed to end session: {e}"
                                 );
                                 return false;
+                            }
+
+                            gst::log!(CAT, imp = this, "Session cleaned up");
+
+                            true
+                        }
+                    ),
+                ),
+
+                session_ended_with_error: signaller.connect_closure(
+                    "session-ended-with-error",
+                    false,
+                    glib::closure!(
+                        #[watch]
+                        instance,
+                        move |_signaller: glib::Object, _session_id: &str, error: Option<String>| {
+                            let this = instance.imp();
+
+                            if let Err(e) = this.remove_session(false) {
+                                gst::error!(
+                                    CAT,
+                                    imp = this,
+                                    " Failed to end session: {e}"
+                                );
+                                return false;
+                            }
+
+                            if let Some(error) = error {
+                                this.obj().post_error_message(gst::error_msg!(
+                                        gst::StreamError::Failed,
+                                        ["Session ended with error: {error}"]
+                                ));
                             }
 
                             gst::log!(CAT, imp = this, "Session cleaned up");

@@ -13,6 +13,7 @@ pub struct SignallableInterface {
     pub send_sdp: fn(&super::Signallable, &str, &gst_webrtc::WebRTCSessionDescription),
     pub add_ice: fn(&super::Signallable, &str, &str, u32, Option<String>),
     pub end_session: fn(&super::Signallable, &str),
+    pub end_session_with_error: fn(&super::Signallable, &str, Option<String>),
 }
 
 unsafe impl InterfaceStruct for SignallableInterface {
@@ -42,6 +43,12 @@ impl Signallable {
     ) {
     }
     fn end_session(_iface: &super::Signallable, _session_id: &str) {}
+    fn end_session_with_error(
+        _iface: &super::Signallable,
+        _session_id: &str,
+        _error: Option<String>,
+    ) {
+    }
 }
 
 #[glib::object_interface]
@@ -56,6 +63,7 @@ impl prelude::ObjectInterface for Signallable {
         iface.send_sdp = Signallable::send_sdp;
         iface.add_ice = Signallable::add_ice;
         iface.end_session = Signallable::end_session;
+        iface.end_session_with_error = Signallable::end_session_with_error;
     }
 
     fn properties() -> &'static [glib::ParamSpec] {
@@ -85,6 +93,19 @@ impl prelude::ObjectInterface for Signallable {
                  */
                 Signal::builder("session-ended")
                     .param_types([str::static_type()])
+                    .return_type::<bool>()
+                    .build(),
+                /**
+                 * GstRSWebRTCSignallableIface::session-ended-with-error:
+                 * @self: The object implementing #GstRSWebRTCSignallableIface
+                 * @session-id: The ID of the session that ended
+                 * @error: The optional error that triggereded the session ending
+                 *
+                 * Notify the underlying webrtc object that a session has ended,
+                 * with an optional error.
+                 */
+                Signal::builder("session-ended-with-error")
+                    .param_types([str::static_type(), <Option<String>>::static_type()])
                     .return_type::<bool>()
                     .build(),
                 /**
@@ -290,6 +311,41 @@ impl prelude::ObjectInterface for Signallable {
                         let vtable = this.interface::<super::Signallable>().unwrap();
                         let vtable = vtable.as_ref();
                         (vtable.end_session)(this, session_id);
+
+                        Some(false.into())
+                    })
+                    .accumulator(move |_hint, _acc, value| {
+                        // First signal handler wins
+                        std::ops::ControlFlow::Break(value.clone())
+                    })
+                    .build(),
+                /**
+                 * GstRSWebRTCSignallableIface::end-session-with-error:
+                 * @self: The object implementing #GstRSWebRTCSignallableIface
+                 * @session-id: The ID of the session that should be ended
+                 * @error: the optional error that ended the session
+                 *
+                 * Notify the signaller that a session should be ended, with an optional error.
+                 */
+                Signal::builder("end-session-with-error")
+                    .run_last()
+                    .param_types([str::static_type(), <Option<String>>::static_type()])
+                    .return_type::<bool>()
+                    .class_handler(|args| {
+                        let this = args[0usize]
+                            .get::<&super::Signallable>()
+                            .unwrap_or_else(|e| {
+                                panic!("Wrong type for argument {}: {:?}", 0usize, e)
+                            });
+                        let session_id = args[1usize].get::<&str>().unwrap_or_else(|e| {
+                            panic!("Wrong type for argument {}: {:?}", 1usize, e)
+                        });
+                        let error = args[2usize].get::<Option<String>>().unwrap_or_else(|e| {
+                            panic!("Wrong type for argument {}: {:?}", 1usize, e)
+                        });
+                        let vtable = this.interface::<super::Signallable>().unwrap();
+                        let vtable = vtable.as_ref();
+                        (vtable.end_session_with_error)(this, session_id, error);
 
                         Some(false.into())
                     })
@@ -534,6 +590,18 @@ where
             SignallableImpl::end_session(this.imp(), session_id)
         }
         iface.end_session = end_session_trampoline::<Obj>;
+
+        fn end_session_with_error_trampoline<Obj: types::ObjectSubclass + SignallableImpl>(
+            this: &super::Signallable,
+            session_id: &str,
+            error: Option<String>,
+        ) {
+            let this = this
+                .dynamic_cast_ref::<<Obj as types::ObjectSubclass>::Type>()
+                .unwrap();
+            SignallableImpl::end_session_with_error(this.imp(), session_id, error)
+        }
+        iface.end_session_with_error = end_session_with_error_trampoline::<Obj>;
     }
 }
 
@@ -552,6 +620,10 @@ pub trait SignallableImpl:
     ) {
     }
     fn end_session(&self, _session_id: &str) {}
+    fn end_session_with_error(&self, session_id: &str, _error: Option<String>) {
+        // If the signaller subclass didn't implement, route to end_session
+        self.end_session(session_id);
+    }
 }
 
 pub trait SignallableExt: IsA<super::Signallable> + 'static {
@@ -571,6 +643,7 @@ pub trait SignallableExt: IsA<super::Signallable> + 'static {
         sdp_mid: Option<String>,
     );
     fn end_session(&self, session_id: &str);
+    fn end_session_with_error(&self, session_id: &str, error: Option<String>);
 }
 
 impl<Obj: IsA<super::Signallable>> SignallableExt for Obj {
@@ -612,5 +685,9 @@ impl<Obj: IsA<super::Signallable>> SignallableExt for Obj {
 
     fn end_session(&self, session_id: &str) {
         self.emit_by_name::<bool>("end-session", &[&session_id]);
+    }
+
+    fn end_session_with_error(&self, session_id: &str, error: Option<String>) {
+        self.emit_by_name::<bool>("end-session-with-error", &[&session_id, &error]);
     }
 }

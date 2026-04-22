@@ -206,7 +206,20 @@ impl Signaller {
             #[to_owned(rename_to = this)]
             self,
             async move {
-                let mut res = Ok(());
+                let mut res = ws_sink
+                    .send(WsMessage::text(
+                        serde_json::to_string(&p::IncomingMessage::SetProtocolVersion(
+                            p::ProtocolVersion::V1_1,
+                        ))
+                        .unwrap(),
+                    ))
+                    .await;
+
+                if let Err(ref err) = res {
+                    gst::error!(CAT, imp = this, "Quitting send loop: {err}");
+                    return res.map_err(Into::into);
+                }
+
                 while let Some(msg) = websocket_receiver.next().await {
                     gst::log!(CAT, "Sending websocket message {:?}", msg);
                     res = ws_sink
@@ -462,6 +475,15 @@ impl Signaller {
 
                             self.obj()
                                 .emit_by_name::<bool>("session-ended", &[&session_id]);
+                        }
+                        p::OutgoingMessage::EndSessionV1_1(p::EndSessionMessageV1_1 {
+                            session_id,
+                            error,
+                        }) => {
+                            self.obj().emit_by_name::<bool>(
+                                "session-ended-with-error",
+                                &[&session_id, &error],
+                            );
                         }
                         p::OutgoingMessage::Peer(p::PeerMessage {
                             session_id,
@@ -832,6 +854,34 @@ impl SignallableImpl for Signaller {
                         .send(p::IncomingMessage::EndSession(p::EndSessionMessage {
                             session_id,
                         }))
+                        .await
+                    {
+                        this.obj()
+                            .emit_by_name::<()>("error", &[&format!("Error: {err}")]);
+                    }
+                }
+            ));
+        }
+    }
+
+    fn end_session_with_error(&self, session_id: &str, error: Option<String>) {
+        gst::debug!(
+            CAT,
+            imp = self,
+            "Signalling session {session_id} done with error {error:?}"
+        );
+
+        let state = self.state.lock().unwrap();
+        let session_id = session_id.to_string();
+        if let Some(mut sender) = state.websocket_sender.clone() {
+            RUNTIME.spawn(glib::clone!(
+                #[to_owned(rename_to = this)]
+                self,
+                async move {
+                    if let Err(err) = sender
+                        .send(p::IncomingMessage::EndSessionV1_1(
+                            p::EndSessionMessageV1_1 { session_id, error },
+                        ))
                         .await
                     {
                         this.obj()

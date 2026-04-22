@@ -18082,6 +18082,20 @@
                         "return-type": "gboolean",
                         "when": "last"
                     },
+                    "end-session-with-error": {
+                        "args": [
+                            {
+                                "name": "arg0",
+                                "type": "gchararray"
+                            },
+                            {
+                                "name": "arg1",
+                                "type": "gchararray"
+                            }
+                        ],
+                        "return-type": "gboolean",
+                        "when": "last"
+                    },
                     "error": {
                         "args": [
                             {
@@ -18222,6 +18236,20 @@
                         "args": [
                             {
                                 "name": "arg0",
+                                "type": "gchararray"
+                            }
+                        ],
+                        "return-type": "gboolean",
+                        "when": "last"
+                    },
+                    "session-ended-with-error": {
+                        "args": [
+                            {
+                                "name": "arg0",
+                                "type": "gchararray"
+                            },
+                            {
+                                "name": "arg1",
                                 "type": "gchararray"
                             }
                         ],

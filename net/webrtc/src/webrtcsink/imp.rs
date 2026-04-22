@@ -371,6 +371,7 @@ struct SignallerSignals {
     request_meta: glib::SignalHandlerId,
     session_requested: glib::SignalHandlerId,
     session_ended: glib::SignalHandlerId,
+    session_ended_with_error: glib::SignalHandlerId,
     session_description: glib::SignalHandlerId,
     handle_ice: glib::SignalHandlerId,
     shutdown: glib::SignalHandlerId,
@@ -2616,7 +2617,18 @@ impl BaseWebRTCSink {
                 "session-ended",
                 false,
                 glib::closure!(#[watch] instance, move |_signaler: glib::Object, session_id: &str|{
-                    if let Err(err) = instance.imp().remove_session(session_id, false) {
+                    if let Err(err) = instance.imp().remove_session(session_id, false, None) {
+                        gst::warning!(CAT, obj = instance, "{}", err);
+                    }
+                    false
+                }),
+            ),
+
+            session_ended_with_error: signaler.connect_closure(
+                "session-ended-with-error",
+                false,
+                glib::closure!(#[watch] instance, move |_signaler: glib::Object, session_id: &str, error: Option<String>|{
+                    if let Err(err) = instance.imp().remove_session(session_id, false, error.map(|e| anyhow!(e))) {
                         gst::warning!(CAT, obj = instance, "{}", err);
                     }
                     false
@@ -2750,7 +2762,11 @@ impl BaseWebRTCSink {
                                 "Promise returned without a reply for {}",
                                 session_id
                             );
-                            let _ = this.remove_session(&session_id, true);
+                            let _ = this.remove_session(
+                                &session_id,
+                                true,
+                                Some(anyhow!("promise returned without a reply")),
+                            );
                             return;
                         }
                         Err(err) => {
@@ -2761,7 +2777,11 @@ impl BaseWebRTCSink {
                                 session_id,
                                 err
                             );
-                            let _ = this.remove_session(&session_id, true);
+                            let _ = this.remove_session(
+                                &session_id,
+                                true,
+                                Some(anyhow!("Promise returned with an error: {err:?}")),
+                            );
                             return;
                         }
                     };
@@ -2782,7 +2802,11 @@ impl BaseWebRTCSink {
                                 session_id,
                                 reply
                             );
-                            let _ = this.remove_session(&session_id, true);
+                            let _ = this.remove_session(
+                                &session_id,
+                                true,
+                                Some(anyhow!("Reply without an answer")),
+                            );
                         }
                     }
                 }
@@ -2960,7 +2984,11 @@ impl BaseWebRTCSink {
                                     "Promise returned without a reply for {}",
                                     session_id
                                 );
-                                let _ = this.remove_session(&session_id, true);
+                                let _ = this.remove_session(
+                                    &session_id,
+                                    true,
+                                    Some(anyhow!("Promise returned without a reply")),
+                                );
                                 return;
                             }
                             Err(err) => {
@@ -2971,7 +2999,11 @@ impl BaseWebRTCSink {
                                     session_id,
                                     err
                                 );
-                                let _ = this.remove_session(&session_id, true);
+                                let _ = this.remove_session(
+                                    &session_id,
+                                    true,
+                                    Some(anyhow!("Promise returned with an error: {err:?}")),
+                                );
                                 return;
                             }
                         };
@@ -2991,7 +3023,11 @@ impl BaseWebRTCSink {
                                         session_id,
                                         err
                                     );
-                                    let _ = this.remove_session(&session_id, true);
+                                    let _ = this.remove_session(
+                                        &session_id,
+                                        true,
+                                        Some(anyhow!("Error when creating offer: {err:?}")),
+                                    );
                                 }
                                 _ => {
                                     gst::warning!(
@@ -3000,7 +3036,11 @@ impl BaseWebRTCSink {
                                         session_id,
                                         reply
                                     );
-                                    let _ = this.remove_session(&session_id, true);
+                                    let _ = this.remove_session(
+                                        &session_id,
+                                        true,
+                                        Some(anyhow!("Reply without an offer")),
+                                    );
                                 }
                             },
                         }
@@ -3297,7 +3337,11 @@ impl BaseWebRTCSink {
                                 session_id,
                                 peer_id
                             );
-                            let _ = this.remove_session(&session_id, true);
+                            let _ = this.remove_session(
+                                &session_id,
+                                true,
+                                Some(anyhow!("Connection state failed")),
+                            );
                         }
                         _ => {
                             gst::log!(
@@ -3337,7 +3381,11 @@ impl BaseWebRTCSink {
                                 session_id,
                                 peer_id,
                             );
-                            let _ = this.remove_session(&session_id, true);
+                            let _ = this.remove_session(
+                                &session_id,
+                                true,
+                                Some(anyhow!("ICE connection state failed")),
+                            );
                         }
                         _ => {
                             gst::log!(
@@ -3500,7 +3548,15 @@ impl BaseWebRTCSink {
                             err.error(),
                             err.debug()
                         );
-                        let _ = this.remove_session(&session_id_clone, true);
+                        let _ = this.remove_session(
+                            &session_id_clone,
+                            true,
+                            Some(anyhow!(
+                                "Error: {}, details: {:?}",
+                                err.error(),
+                                err.debug()
+                            )),
+                        );
                     }
                     gst::MessageView::Latency(..) => {
                         pipeline
@@ -3516,7 +3572,11 @@ impl BaseWebRTCSink {
                             "Unexpected end of stream in session {}",
                             session_id_clone,
                         );
-                        let _ = this.remove_session(&session_id_clone, true);
+                        let _ = this.remove_session(
+                            &session_id_clone,
+                            true,
+                            Some(anyhow!("Unexpected End of Stream")),
+                        );
                     }
                     gst::MessageView::Element(m)
                         if m.structure()
@@ -3558,7 +3618,11 @@ impl BaseWebRTCSink {
                                 "Failed to bring {peer_id_clone} pipeline to PLAYING: {}",
                                 err
                             );
-                            let _ = this.remove_session(&session_id_clone, true);
+                            let _ = this.remove_session(
+                                &session_id_clone,
+                                true,
+                                Some(anyhow!("Failed to bring pipeline to PLAYING: {err:?}")),
+                            );
                         }
                     }
                     _ => (),
@@ -3664,7 +3728,11 @@ impl BaseWebRTCSink {
                         "Failed to bring {peer_id} pipeline to READY: {}",
                         err
                     );
-                    let _ = this.remove_session(&session_id, true);
+                    let _ = this.remove_session(
+                        &session_id,
+                        true,
+                        Some(anyhow!("Failed to bring pipeline to READY: {err:?}")),
+                    );
                     return;
                 }
 
@@ -3710,7 +3778,11 @@ impl BaseWebRTCSink {
                         "Failed to bring {peer_id} pipeline to PAUSED: {}",
                         err
                     );
-                    let _ = this.remove_session(&session_id, true);
+                    let _ = this.remove_session(
+                        &session_id,
+                        true,
+                        Some(anyhow!("Failed to bring pipeline to PAUSED: {err:?}")),
+                    );
                 }
             }
         ));
@@ -3719,7 +3791,12 @@ impl BaseWebRTCSink {
     }
 
     /// Called by the signaller to remove a consumer
-    fn remove_session(&self, session_id: &str, signal: bool) -> Result<(), WebRTCSinkError> {
+    fn remove_session(
+        &self,
+        session_id: &str,
+        signal: bool,
+        error: Option<Error>,
+    ) -> Result<(), WebRTCSinkError> {
         let settings = self.settings.lock().unwrap();
         let signaller = settings.signaller.clone();
         drop(settings);
@@ -3735,7 +3812,7 @@ impl BaseWebRTCSink {
             signaller
                 .emit_by_name::<()>("consumer-removed", &[&session.peer_id, &session.webrtcbin]);
             if signal {
-                signaller.end_session(session_id);
+                signaller.end_session_with_error(session_id, error.map(|err| err.to_string()));
             }
             self.obj()
                 .emit_by_name::<()>("consumer-removed", &[&session.peer_id, &session.webrtcbin]);
