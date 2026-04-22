@@ -2456,13 +2456,13 @@ impl State {
                 .and_downcast::<gst::Bin>()
                 .unwrap();
 
-            let _ = bin.set_state(gst::State::Null);
-
             if let Some(webrtcsrc) = bin.parent()
                 && let Err(e) = webrtcsrc.downcast_ref::<gst::Bin>().unwrap().remove(&bin)
             {
                 gst::error!(CAT, obj = bin, "Failed to remove bin for session: {e}",);
             }
+
+            let _ = bin.set_state(gst::State::Null);
 
             cvar.notify_one();
 
