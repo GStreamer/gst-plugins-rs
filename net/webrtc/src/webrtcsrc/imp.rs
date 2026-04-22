@@ -1749,7 +1749,7 @@ impl BaseWebRTCSrc {
                         move |_signaller: glib::Object, _session_id: &str| {
                             let this = instance.imp();
 
-                            if let Err(e) = this.remove_session() {
+                            if let Err(e) = this.remove_session(false) {
                                 gst::error!(
                                     CAT,
                                     imp = this,
@@ -2084,7 +2084,7 @@ impl BaseWebRTCSrc {
                     match state {
                         gst_webrtc::WebRTCICEConnectionState::Failed => {
                             gst::warning!(CAT, imp = this, "Ice connection state failed");
-                            let _ = this.remove_session();
+                            let _ = this.remove_session(true);
                         }
                         _ => {
                             gst::log!(CAT, imp = this, "Ice connection state changed: {:?}", state);
@@ -2107,7 +2107,7 @@ impl BaseWebRTCSrc {
         Ok(())
     }
 
-    fn remove_session(&self) -> Result<(), Error> {
+    fn remove_session(&self, signal: bool) -> Result<(), Error> {
         let mut state = self.state.lock().unwrap();
         if state.session.is_none() {
             return Err(anyhow::anyhow!("No current session"));
@@ -2121,7 +2121,9 @@ impl BaseWebRTCSrc {
         if let Some(session) = state.end_session(&self.obj()) {
             drop(state);
             let session = session.0.lock().unwrap();
-            self.signaller().end_session(&session.id);
+            if signal {
+                self.signaller().end_session(&session.id);
+            }
         }
 
         self.remove_src_pad()?;
