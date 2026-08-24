@@ -40,6 +40,7 @@
 use std::collections::{BTreeMap, HashMap};
 use std::fmt;
 use std::net::SocketAddr;
+use std::num::NonZeroUsize;
 use std::ops::{ControlFlow, Deref};
 use std::pin::Pin;
 use std::sync::{Arc, LazyLock, Mutex, MutexGuard, mpsc as sync_mpsc};
@@ -54,8 +55,8 @@ use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 use super::internal::{GstRustLogger, SharedRtpState, SharedSession, pt_clock_rate_from_caps};
 use super::jitterbuffer::{self, JitterBuffer};
 use super::session::{
-    KeyUnitRequestType, RTCP_MIN_REPORT_INTERVAL, RecvReply, RequestRemoteKeyUnitReply,
-    RtcpRecvReply, RtpProfile,
+    DEFAULT_MAX_REMOTE_SOURCES, KeyUnitRequestType, RTCP_MIN_REPORT_INTERVAL, RecvReply,
+    RequestRemoteKeyUnitReply, RtcpRecvReply, RtpProfile,
 };
 use super::source::SourceState;
 use super::sync;
@@ -80,6 +81,8 @@ static CAT: LazyLock<gst::DebugCategory> = LazyLock::new(|| {
 struct Settings {
     rtp_id: String,
     latency: gst::ClockTime,
+    max_remote_receiver_sources: NonZeroUsize,
+    max_remote_sender_sources: NonZeroUsize,
     timestamping_mode: sync::TimestampingMode,
 }
 
@@ -88,6 +91,8 @@ impl Default for Settings {
         Settings {
             rtp_id: String::from("rtp-id"),
             latency: DEFAULT_LATENCY,
+            max_remote_receiver_sources: DEFAULT_MAX_REMOTE_SOURCES,
+            max_remote_sender_sources: DEFAULT_MAX_REMOTE_SOURCES,
             timestamping_mode: sync::TimestampingMode::default(),
         }
     }
@@ -505,10 +510,17 @@ struct RecvSession {
 }
 
 impl RecvSession {
-    fn new(shared_state: &SharedRtpState, id: usize) -> Self {
+    fn new(
+        shared_state: &SharedRtpState,
+        id: usize,
+        max_remote_receiver_sources: NonZeroUsize,
+        max_remote_sender_sources: NonZeroUsize,
+    ) -> Self {
         let internal_session = shared_state.session_get_or_init(id, || {
             SharedSession::new(id, RtpProfile::Avp, RTCP_MIN_REPORT_INTERVAL, false)
         });
+        internal_session.set_max_remote_receiver_sources(max_remote_receiver_sources);
+        internal_session.set_max_remote_sender_sources(max_remote_sender_sources);
 
         let recv_flow_combiner = Arc::new(Mutex::new(gst_base::UniqueFlowCombiner::new()));
         let (task, rtp_task_cmd_tx) = RecvSessionSrcTask::new(recv_flow_combiner.clone());
@@ -2447,6 +2459,20 @@ impl ObjectImpl for RtpRecv {
                     .default_value(DEFAULT_LATENCY.mseconds() as u32)
                     .mutable_ready()
                     .build(),
+                glib::ParamSpecUInt::builder("max-remote-receiver-sources")
+                    .nick("Max Remote Receiver Sources")
+                    .blurb("How many remote receiver sources to track. After the limit is reached, \
+                        the least recently used source is evicted.")
+                    .minimum(1)
+                    .default_value(DEFAULT_MAX_REMOTE_SOURCES.get() as u32)
+                    .build(),
+                glib::ParamSpecUInt::builder("max-remote-sender-sources")
+                    .nick("Max Remote Sender Sources")
+                    .blurb("How many remote sender sources to track. After the limit is reached, \
+                        the least recently used source is evicted.")
+                    .minimum(1)
+                    .default_value(DEFAULT_MAX_REMOTE_SOURCES.get() as u32)
+                    .build(),
                 glib::ParamSpecBoxed::builder::<gst::Structure>("stats")
                     .nick("Statistics")
                     .blurb("Statistics about the session")
@@ -2483,6 +2509,18 @@ impl ObjectImpl for RtpRecv {
                     .obj()
                     .post_message(gst::message::Latency::builder().src(&*self.obj()).build());
             }
+            "max-remote-receiver-sources" => {
+                let mut settings = self.settings.lock().unwrap();
+                settings.max_remote_receiver_sources =
+                    NonZeroUsize::new(value.get::<u32>().expect("Type checked upstream") as usize)
+                        .expect("minimum 1 efforced by param spec");
+            }
+            "max-remote-sender-sources" => {
+                let mut settings = self.settings.lock().unwrap();
+                settings.max_remote_sender_sources =
+                    NonZeroUsize::new(value.get::<u32>().expect("Type checked upstream") as usize)
+                        .expect("minimum 1 efforced by param spec");
+            }
             "timestamping-mode" => {
                 let mut settings = self.settings.lock().unwrap();
                 settings.timestamping_mode = value
@@ -2502,6 +2540,14 @@ impl ObjectImpl for RtpRecv {
             "latency" => {
                 let settings = self.settings.lock().unwrap();
                 (settings.latency.mseconds() as u32).to_value()
+            }
+            "max-remote-receiver-sources" => {
+                let settings = self.settings.lock().unwrap();
+                (settings.max_remote_receiver_sources.get() as u32).to_value()
+            }
+            "max-remote-sender-sources" => {
+                let settings = self.settings.lock().unwrap();
+                (settings.max_remote_sender_sources.get() as u32).to_value()
             }
             "stats" => {
                 let state = self.state.lock().unwrap();
@@ -2679,7 +2725,15 @@ impl ElementImpl for RtpRecv {
                     let shared_state = state
                         .shared_state
                         .get_or_insert_with(|| SharedRtpState::get_or_init(rtp_id));
-                    let mut session = RecvSession::new(shared_state, id);
+                    let (max_receivers, max_senders) = {
+                        let settings = self.settings.lock().unwrap();
+                        (
+                            settings.max_remote_receiver_sources,
+                            settings.max_remote_sender_sources,
+                        )
+                    };
+                    let mut session =
+                        RecvSession::new(shared_state, id, max_receivers, max_senders);
                     let ret = new_pad(&mut session);
                     state.sessions.push(session);
                     ret
@@ -2724,7 +2778,15 @@ impl ElementImpl for RtpRecv {
                     let shared_state = state
                         .shared_state
                         .get_or_insert_with(|| SharedRtpState::get_or_init(rtp_id));
-                    let mut session = RecvSession::new(shared_state, id);
+                    let (max_receivers, max_senders) = {
+                        let settings = self.settings.lock().unwrap();
+                        (
+                            settings.max_remote_receiver_sources,
+                            settings.max_remote_sender_sources,
+                        )
+                    };
+                    let mut session =
+                        RecvSession::new(shared_state, id, max_receivers, max_senders);
                     let ret = new_pad(&mut session);
                     state.sessions.push(session);
                     ret

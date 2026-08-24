@@ -25,6 +25,7 @@ glib.workspace = true
 gio.workspace = true
 hex = "0.4.3"
 log = "0.4"
+lru.workspace = true
 rand = "0.10"
 rtp-types = { version = "0.1" }
 rtcp-types = { version = "0.3" }

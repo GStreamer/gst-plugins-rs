@@ -2,8 +2,10 @@
 
 use std::collections::{HashMap, VecDeque};
 use std::net::SocketAddr;
+use std::num::NonZeroUsize;
 use std::time::{Duration, Instant, SystemTime};
 
+use lru::LruCache;
 use rtcp_types::*;
 use rtp_types::RtpPacket;
 
@@ -28,6 +30,11 @@ const RTCP_MIN_BANDWIDTH: usize = 400;
 const RTCP_MTU: usize = 1200;
 
 const UDP_IP_OVERHEAD_BYTES: usize = 28;
+
+/// Maximum number of remote sending or receiving sources to keep track of.
+/// When a new source is handled and the threshold is reached,
+/// the least recently used source is dropped.
+pub const DEFAULT_MAX_REMOTE_SOURCES: NonZeroUsize = NonZeroUsize::new(150).unwrap();
 
 #[derive(Debug, Default)]
 struct RtcpTimeMembers {
@@ -76,8 +83,8 @@ pub struct Session {
     // state
     local_senders: HashMap<u32, LocalSendSource>,
     local_receivers: HashMap<u32, LocalReceiveSource>,
-    remote_receivers: HashMap<u32, RemoteReceiveSource>,
-    remote_senders: HashMap<u32, RemoteSendSource>,
+    remote_receivers: LruCache<u32, RemoteReceiveSource>,
+    remote_senders: LruCache<u32, RemoteSendSource>,
     average_rtcp_size: usize,
     last_sent_data: Option<Instant>,
     hold_buffer_counter: usize,
@@ -182,8 +189,8 @@ impl Session {
             local_senders: HashMap::new(),
             // also known as remote_senders
             local_receivers: HashMap::new(),
-            remote_receivers: HashMap::new(),
-            remote_senders: HashMap::new(),
+            remote_receivers: LruCache::new(DEFAULT_MAX_REMOTE_SOURCES),
+            remote_senders: LruCache::new(DEFAULT_MAX_REMOTE_SOURCES),
             last_rtcp_sent_times: VecDeque::new(),
             rtcp_interval: None,
             next_rtcp_send: RtcpTimeMembers {
@@ -220,6 +227,16 @@ impl Session {
         self.reduced_size_rtcp = reduced_size_rtcp;
     }
 
+    /// Sets the maximum number of remote receivers sources.
+    pub fn set_max_remote_receiver_sources(&mut self, max_sources: NonZeroUsize) {
+        self.remote_receivers.resize(max_sources);
+    }
+
+    /// Sets the maximum number of remote senders sources.
+    pub fn set_max_remote_sender_sources(&mut self, max_sources: NonZeroUsize) {
+        self.remote_senders.resize(max_sources);
+    }
+
     fn n_members(&self) -> usize {
         self.bye_state
             .as_ref()
@@ -236,13 +253,13 @@ impl Session {
                         .count()
                     + self
                         .remote_senders
-                        .values()
-                        .filter(|source| source.state() == SourceState::Normal)
+                        .iter()
+                        .filter(|(_ssrc, source)| source.state() == SourceState::Normal)
                         .count()
                     + self
                         .remote_receivers
-                        .values()
-                        .filter(|source| source.state() == SourceState::Normal)
+                        .iter()
+                        .filter(|(_ssrc, source)| source.state() == SourceState::Normal)
                         .count()
             })
     }
@@ -255,8 +272,8 @@ impl Session {
                 .count()
                 + self
                     .remote_senders
-                    .values()
-                    .filter(|source| source.state() == SourceState::Normal)
+                    .iter()
+                    .filter(|(_ssrc, source)| source.state() == SourceState::Normal)
                     .count()
         })
     }
@@ -276,12 +293,12 @@ impl Session {
         let mut cname = None;
         self.is_point_to_point = self
             .remote_senders
-            .values()
-            .filter_map(|source| source.sdes().get(&SdesItem::CNAME))
+            .iter()
+            .filter_map(|(_ssrc, source)| source.sdes().get(&SdesItem::CNAME))
             .chain(
                 self.remote_receivers
-                    .values()
-                    .filter_map(|source| source.sdes().get(&SdesItem::CNAME)),
+                    .iter()
+                    .filter_map(|(_ssrc, source)| source.sdes().get(&SdesItem::CNAME)),
             )
             .all(|cn| {
                 let ret = cname.is_none() || cname == Some(cn);
@@ -337,10 +354,10 @@ impl Session {
                 } else {
                     return RecvReply::Ignore;
                 }
-            } else if let Some(recv) = self.remote_receivers.remove(&rtp.ssrc()) {
+            } else if let Some(recv) = self.remote_receivers.pop(&rtp.ssrc()) {
                 let mut sender = recv.into_send();
                 sender.set_rtp_from(from);
-                self.remote_senders.insert(rtp.ssrc(), sender);
+                self.remote_senders.push(rtp.ssrc(), sender);
             } else if let Some(recv) = self.remote_senders.get_mut(&rtp.ssrc()) {
                 if let Some(from_addr) = recv.rtp_from() {
                     if addr != from_addr {
@@ -377,14 +394,13 @@ impl Session {
                 SourceRecvReply::Passthrough => RecvReply::Passthrough,
             }
         } else {
-            let mut source = RemoteSendSource::new(rtp.ssrc());
+            let ssrc = rtp.ssrc();
+            let mut source = RemoteSendSource::new(ssrc);
             source.set_rtp_from(from);
-            self.remote_senders.insert(rtp.ssrc(), source);
+            self.remote_senders.push(ssrc, source);
             trace!(
-                "new receive ssrc: {:#08x} ({}), pt:{}",
-                rtp.ssrc(),
-                rtp.ssrc(),
-                rtp.payload_type()
+                "new receive ssrc: {ssrc:#08x} ({ssrc}), pt: {}",
+                rtp.payload_type(),
             );
             RecvReply::NewSsrc(rtp.ssrc(), rtp.payload_type())
         }
@@ -494,12 +510,12 @@ impl Session {
             source.add_last_rb(sender_ssrc, rb, now, ntp_time);
             source.set_last_activity(now);
         } else {
-            if let Some(source) = self.remote_receivers.remove(&rb.ssrc()) {
+            if let Some(source) = self.remote_receivers.pop(&rb.ssrc()) {
                 let sender = source.into_send();
-                self.remote_senders.insert(rb.ssrc(), sender);
+                self.remote_senders.push(rb.ssrc(), sender);
             }
 
-            let source = self.remote_senders.entry(rb.ssrc()).or_insert_with(|| {
+            let source = self.remote_senders.get_or_insert_mut(rb.ssrc(), || {
                 ret = Some(RtcpRecvReply::NewSsrc(rb.ssrc()));
                 RemoteSendSource::new(rb.ssrc())
             });
@@ -611,12 +627,12 @@ impl Session {
                     }
                 }
                 Ok(Packet::Rr(rr)) => {
-                    if let Some(source) = self.remote_senders.remove(&rr.ssrc()) {
+                    if let Some(source) = self.remote_senders.pop(&rr.ssrc()) {
                         let receiver = source.into_receive();
-                        self.remote_receivers.insert(rr.ssrc(), receiver);
+                        self.remote_receivers.push(rr.ssrc(), receiver);
                     }
 
-                    let source = self.remote_receivers.entry(rr.ssrc()).or_insert_with(|| {
+                    let source = self.remote_receivers.get_or_insert_mut(rr.ssrc(), || {
                         replies.push(RtcpRecvReply::NewSsrc(rr.ssrc()));
                         RemoteReceiveSource::new(rr.ssrc())
                     });
@@ -641,12 +657,12 @@ impl Session {
                         continue;
                     }
 
-                    if let Some(source) = self.remote_receivers.remove(&sr.ssrc()) {
+                    if let Some(source) = self.remote_receivers.pop(&sr.ssrc()) {
                         let sender = source.into_send();
-                        self.remote_senders.insert(sr.ssrc(), sender);
+                        self.remote_senders.push(sr.ssrc(), sender);
                     }
 
-                    let source = self.remote_senders.entry(sr.ssrc()).or_insert_with(|| {
+                    let source = self.remote_senders.get_or_insert_mut(sr.ssrc(), || {
                         replies.push(RtcpRecvReply::NewSsrc(sr.ssrc()));
                         RemoteSendSource::new(sr.ssrc())
                     });
@@ -704,10 +720,8 @@ impl Session {
                                 source.set_state(SourceState::Normal);
                                 source.set_last_activity(now);
                             } else {
-                                let source = self
-                                    .remote_receivers
-                                    .entry(chunk.ssrc())
-                                    .or_insert_with(|| {
+                                let source =
+                                    self.remote_receivers.get_or_insert_mut(chunk.ssrc(), || {
                                         replies.push(RtcpRecvReply::NewSsrc(chunk.ssrc()));
                                         RemoteReceiveSource::new(chunk.ssrc())
                                     });
@@ -763,8 +777,8 @@ impl Session {
         sender_ssrc: u32,
         media_ssrcs: impl Iterator<Item = u32>,
     ) {
-        if !self.remote_receivers.contains_key(&sender_ssrc)
-            && !self.remote_senders.contains_key(&sender_ssrc)
+        if !self.remote_receivers.contains(&sender_ssrc)
+            && !self.remote_senders.contains(&sender_ssrc)
         {
             trace!("No remote source known for sender ssrc {sender_ssrc:#08x} ({sender_ssrc})");
         }
@@ -888,7 +902,7 @@ impl Session {
 
                 // Don't include RBs in minimal RTCP packets
                 if !minimum {
-                    for sender in self.remote_senders.values() {
+                    for (_ssrc, sender) in self.remote_senders.iter() {
                         if sender.state() != SourceState::Normal {
                             continue;
                         }
@@ -922,8 +936,8 @@ impl Session {
     fn have_ssrc(&self, ssrc: u32) -> bool {
         self.local_senders.contains_key(&ssrc)
             || self.local_receivers.contains_key(&ssrc)
-            || self.remote_senders.contains_key(&ssrc)
-            || self.remote_receivers.contains_key(&ssrc)
+            || self.remote_senders.contains(&ssrc)
+            || self.remote_receivers.contains(&ssrc)
     }
 
     pub fn internal_ssrc(&self) -> Option<u32> {
@@ -982,7 +996,7 @@ impl Session {
 
             // Don't include RBs in minimal RTCP packets
             if !minimum {
-                for sender in self.remote_senders.values() {
+                for (_ssrc, sender) in self.remote_senders.iter() {
                     if sender.state() != SourceState::Normal {
                         continue;
                     }
@@ -1109,7 +1123,7 @@ impl Session {
     ) -> CompoundBuilder<'a> {
         let ssrc = self.ensure_internal_send_src();
 
-        for source in self.remote_senders.values_mut() {
+        for (_ssrc, source) in self.remote_senders.iter_mut() {
             let pli = source.generate_pli();
             if let Some(pli) = pli {
                 debug!(
@@ -1136,7 +1150,7 @@ impl Session {
         let mut have_fir = false;
         let mut fir = rtcp_types::Fir::builder();
 
-        for source in self.remote_senders.values_mut() {
+        for (_ssrc, source) in self.remote_senders.iter_mut() {
             fir = source.generate_fir(fir, &mut have_fir);
         }
 
@@ -1164,10 +1178,18 @@ impl Session {
         // delete all sources that are too old
         self.local_receivers
             .retain(|_ssrc, source| now - source.last_activity() < td);
-        self.remote_senders
-            .retain(|_ssrc, source| now - source.last_activity() < td);
-        self.remote_receivers
-            .retain(|_ssrc, source| now - source.last_activity() < td);
+        while let Some((_lru_ssrc, lru_source)) = self.remote_senders.peek_lru() {
+            if now - lru_source.last_activity() < td {
+                break;
+            }
+            self.remote_senders.pop_lru();
+        }
+        while let Some((_lru_ssrc, lru_source)) = self.remote_receivers.peek_lru() {
+            if now - lru_source.last_activity() < td {
+                break;
+            }
+            self.remote_receivers.pop_lru();
+        }
 
         // There is a SHOULD about performing RTCP reverse timer consideration here if any sources
         // were timed out, however we are here before calculating the next rtcp timeout so are
@@ -1403,9 +1425,9 @@ impl Session {
             .sum::<usize>()
             + self
                 .remote_senders
-                .values()
-                .filter(|source| source.state() == SourceState::Normal)
-                .map(|source| source.bitrate())
+                .iter()
+                .filter(|(_ssrc, source)| source.state() == SourceState::Normal)
+                .map(|(_ssrc, source)| source.bitrate())
                 .sum::<usize>()
     }
 
@@ -1560,9 +1582,9 @@ impl Session {
     pub fn ssrcs(&self) -> impl Iterator<Item = u32> + '_ {
         self.local_senders
             .keys()
-            .chain(self.remote_senders.keys())
+            .chain(self.remote_senders.iter().map(|(ssrc, _sender)| ssrc))
             .chain(self.local_receivers.keys())
-            .chain(self.remote_receivers.keys())
+            .chain(self.remote_receivers.iter().map(|(ssrc, _receiver)| ssrc))
             .cloned()
     }
 
@@ -1578,12 +1600,12 @@ impl Session {
 
     /// Retrieve a remote send source by ssrc
     pub fn remote_send_source_by_ssrc(&self, ssrc: u32) -> Option<&RemoteSendSource> {
-        self.remote_senders.get(&ssrc)
+        self.remote_senders.peek(&ssrc)
     }
 
     /// Retrieve a remote receive source by ssrc
     pub fn remote_receive_source_by_ssrc(&self, ssrc: u32) -> Option<&RemoteReceiveSource> {
-        self.remote_receivers.get(&ssrc)
+        self.remote_receivers.peek(&ssrc)
     }
 
     pub fn mut_local_send_source_by_ssrc(&mut self, ssrc: u32) -> Option<&mut LocalSendSource> {
@@ -1603,7 +1625,7 @@ impl Session {
     ) -> Vec<RequestRemoteKeyUnitReply> {
         let mut replies = Vec::new();
 
-        if !self.remote_senders.contains_key(&ssrc) {
+        if !self.remote_senders.contains(&ssrc) {
             trace!("No remote sender with ssrc {ssrc:#08x} ({ssrc}) known");
             return replies;
         };
@@ -2721,5 +2743,122 @@ pub(crate) mod tests {
             ]
         );
         assert!(!session.is_point_to_point);
+    }
+
+    #[test]
+    fn max_remote_senders() {
+        const TEST_NAME: &str = "max_remote_senders";
+        const MAX_REMOTE_SSRCS: NonZeroUsize = NonZeroUsize::new(10).unwrap();
+
+        let mut session = Session::new();
+        session.set_pt_clock_rate(TEST_PT, TEST_CLOCK_RATE);
+        session.set_max_remote_sender_sources(MAX_REMOTE_SSRCS);
+
+        let now = Instant::now();
+        let ntp_now = SystemTime::now();
+        let ssrc_base = 1000;
+
+        let mut ssrc = ssrc_base;
+        let mut remote_senders = 0;
+        let mut seq_nb = 500;
+        for idx in 0usize..(MAX_REMOTE_SSRCS.get() * 2) {
+            seq_nb += 1;
+            ssrc += 1u32;
+            let rtp_data = generate_rtp_packet(ssrc, seq_nb, 0, 4);
+            let packet = RtpPacket::parse(&rtp_data).unwrap();
+            let recv_reply = session.handle_recv(&packet, None, now);
+
+            assert_eq!(RecvReply::NewSsrc(ssrc, TEST_PT), recv_reply);
+
+            if idx < MAX_REMOTE_SSRCS.get() {
+                // remote sender list can only grow up to MAX_REMOTE_SSRCS
+                remote_senders += 1;
+            }
+            assert_eq!(remote_senders, session.remote_senders.len());
+            // last inserted SSRC is kept in the remote sender list
+            assert!(session.remote_senders.contains(&ssrc));
+
+            if idx >= MAX_REMOTE_SSRCS.get() {
+                // ealier inserted SSRC is no longer in the remote sender list
+                let evicted_ssrc = ssrc - MAX_REMOTE_SSRCS.get() as u32;
+                assert!(!session.remote_senders.contains(&evicted_ssrc));
+                assert!(session.remote_senders.contains(&(evicted_ssrc + 1)));
+            }
+        }
+
+        let rb_ssrc_base = 2000;
+        let mut data = vec![0; 128];
+        let len = Compound::builder()
+            .add_packet(
+                SenderReport::builder(ssrc)
+                    .add_report_block(ReportBlock::builder(rb_ssrc_base))
+                    .add_report_block(ReportBlock::builder(rb_ssrc_base + 1))
+                    .add_report_block(ReportBlock::builder(rb_ssrc_base + 2)),
+            )
+            .write_into(&mut data)
+            .unwrap();
+        let rtcp_packet = Compound::parse(&data[..len]).unwrap();
+        let _ = session.handle_rtcp_recv(TEST_NAME, rtcp_packet, len, None, now, ntp_now);
+        assert!(session.remote_senders.contains(&ssrc));
+        assert!(session.remote_senders.contains(&rb_ssrc_base));
+        assert!(session.remote_senders.contains(&(rb_ssrc_base + 1)));
+        assert!(session.remote_senders.contains(&(rb_ssrc_base + 2)));
+
+        let evicted_ssrc = ssrc - MAX_REMOTE_SSRCS.get() as u32 + 3;
+        assert!(!session.remote_senders.contains(&evicted_ssrc));
+        assert!(session.remote_senders.contains(&(evicted_ssrc + 1)));
+    }
+
+    #[test]
+    fn max_remote_receivers() {
+        const TEST_NAME: &str = "max_remote_receivers";
+        const MAX_REMOTE_SSRCS: NonZeroUsize = NonZeroUsize::new(10).unwrap();
+
+        let mut session = Session::new();
+        session.set_pt_clock_rate(TEST_PT, TEST_CLOCK_RATE);
+        session.set_max_remote_receiver_sources(MAX_REMOTE_SSRCS);
+
+        let now = Instant::now();
+        let ntp_now = SystemTime::now();
+        let ssrc_base = 1000;
+        let from = "127.0.0.1:8080".parse().unwrap();
+
+        let mut ssrc = ssrc_base;
+
+        let mut remote_receivers = 0;
+        for idx in 0usize..(MAX_REMOTE_SSRCS.get() * 2) {
+            ssrc += 1u32;
+
+            let mut data = vec![0; 128];
+            let len = Compound::builder()
+                .add_packet(Sdes::builder().add_chunk(
+                    SdesChunk::builder(ssrc).add_item(SdesItem::builder(SdesItem::CNAME, "cname")),
+                ))
+                .write_into(&mut data)
+                .unwrap();
+            let rtcp = Compound::parse(&data[..len]).unwrap();
+            assert_eq!(
+                session.handle_rtcp_recv(TEST_NAME, rtcp, len, Some(from), now, ntp_now),
+                vec![
+                    RtcpRecvReply::NewSsrc(ssrc),
+                    RtcpRecvReply::NewCName(("cname".to_string(), ssrc))
+                ]
+            );
+
+            if idx < MAX_REMOTE_SSRCS.get() {
+                // remote sender list can only grow up to MAX_REMOTE_SSRCS
+                remote_receivers += 1;
+            }
+            assert_eq!(remote_receivers, session.remote_receivers.len());
+            // last inserted SSRC is kept in the remote sender list
+            assert!(session.remote_receivers.contains(&ssrc));
+
+            if idx >= MAX_REMOTE_SSRCS.get() {
+                // ealier inserted SSRC is no longer in the remote sender list
+                let evicted_ssrc = ssrc - MAX_REMOTE_SSRCS.get() as u32;
+                assert!(!session.remote_receivers.contains(&evicted_ssrc));
+                assert!(session.remote_receivers.contains(&(evicted_ssrc + 1)));
+            }
+        }
     }
 }

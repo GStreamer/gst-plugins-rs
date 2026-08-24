@@ -13565,6 +13565,34 @@
                         "type": "guint",
                         "writable": true
                     },
+                    "max-remote-receiver-sources": {
+                        "blurb": "How many remote receiver sources to track. After the limit is reached, the least recently used source is evicted.",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "150",
+                        "max": "-1",
+                        "min": "1",
+                        "mutable": "null",
+                        "readable": true,
+                        "type": "guint",
+                        "writable": true
+                    },
+                    "max-remote-sender-sources": {
+                        "blurb": "How many remote sender sources to track. After the limit is reached, the least recently used source is evicted.",
+                        "conditionally-available": false,
+                        "construct": false,
+                        "construct-only": false,
+                        "controllable": false,
+                        "default": "150",
+                        "max": "-1",
+                        "min": "1",
+                        "mutable": "null",
+                        "readable": true,
+                        "type": "guint",
+                        "writable": true
+                    },
                     "rtp-id": {
                         "blurb": "A connection ID shared with a rtpsend element for implementing both sending and receiving using the same RTP context",
                         "conditionally-available": false,
