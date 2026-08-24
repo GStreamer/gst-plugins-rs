@@ -9,6 +9,7 @@ use std::{
 };
 
 use gst::{glib, prelude::*};
+use std::num::NonZeroUsize;
 use std::sync::{LazyLock, OnceLock};
 
 use super::clock::{ClockError, SignalledClock, SignalledClocks, SourceLevelClock};
@@ -128,6 +129,22 @@ impl SharedSession {
             config: Rtp2Session::new(weak_inner),
         }
     }
+
+    /// Sets the maximum number of remote receivers sources.
+    pub fn set_max_remote_receiver_sources(&self, max_sources: NonZeroUsize) {
+        self.inner
+            .lock()
+            .unwrap()
+            .set_max_remote_receiver_sources(max_sources);
+    }
+
+    /// Sets the maximum number of remote senders sources.
+    pub fn set_max_remote_sender_sources(&self, max_sources: NonZeroUsize) {
+        self.inner
+            .lock()
+            .unwrap()
+            .set_max_remote_sender_sources(max_sources);
+    }
 }
 
 #[derive(Debug)]
@@ -230,6 +247,16 @@ impl SharedSessionInner {
 
     pub fn sdes(&self) -> impl Iterator<Item = (u8, &str)> + '_ {
         self.session.sdes()
+    }
+
+    /// Sets the maximum number of remote receivers sources.
+    pub fn set_max_remote_receiver_sources(&mut self, max_sources: NonZeroUsize) {
+        self.session.set_max_remote_receiver_sources(max_sources);
+    }
+
+    /// Sets the maximum number of remote senders sources.
+    pub fn set_max_remote_sender_sources(&mut self, max_sources: NonZeroUsize) {
+        self.session.set_max_remote_sender_sources(max_sources);
     }
 
     pub fn stats(&self) -> gst::Structure {
