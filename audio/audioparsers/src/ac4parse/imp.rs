@@ -398,7 +398,6 @@ impl ElementImpl for Ac4Parse {
     fn pad_templates() -> &'static [gst::PadTemplate] {
         static PAD_TEMPLATES: LazyLock<Vec<gst::PadTemplate>> = LazyLock::new(|| {
             let src_caps = gst::Caps::builder("audio/x-ac4")
-                .field("framed", true)
                 .field("rate", gst::List::new([44100, 48000]))
                 .field(
                     "framerate",
@@ -624,7 +623,6 @@ impl BaseParseImpl for Ac4Parse {
             state.bitstream_version = Some(frame_info.bitstream_version);
 
             let caps = gst::Caps::builder("audio/x-ac4")
-                .field("framed", true)
                 .field("alignment", "frame")
                 .field("rate", frame_info.rate as i32)
                 .field(
@@ -679,16 +677,9 @@ impl BaseParseImpl for Ac4Parse {
         let template_caps = self.obj().sink_pad().pad_template_caps();
 
         // Query downstream (SRC!!) peer pads
-        let mut peer_caps = {
-            if let Some(f) = filter {
-                let mut f_copy = f.to_owned();
-                remove_fields(&mut f_copy);
-                self.obj().src_pad().peer_query_caps(Some(&f_copy))
-            } else {
-                self.obj().src_pad().peer_query_caps(None)
-            }
-        };
-        remove_fields(&mut peer_caps);
+        let peer_caps = self.obj().src_pad().peer_query_caps(filter);
+
+        gst::debug!(CAT, imp = self, "Peer caps: {peer_caps}");
 
         let mut negotiated_caps =
             peer_caps.intersect_with_mode(&template_caps, gst::CapsIntersectMode::First);
@@ -698,15 +689,8 @@ impl BaseParseImpl for Ac4Parse {
                 f.intersect_with_mode(&negotiated_caps, gst::CapsIntersectMode::First);
         }
 
-        negotiated_caps
-    }
-}
+        gst::debug!(CAT, imp = self, "Negotiated caps: {negotiated_caps}");
 
-// Remove "framed" field from the upstream caps filter to prevent it from interfiring with the caps negotiation,
-// as some upstream elements may not have "framed" in their caps
-fn remove_fields(caps: &mut gst::Caps) {
-    let caps_mut = caps.make_mut();
-    for s in caps_mut.iter_mut() {
-        s.remove_field("framed");
+        negotiated_caps
     }
 }

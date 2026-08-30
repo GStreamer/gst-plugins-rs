@@ -58,8 +58,6 @@ fn test_parse_ac4_2ch() {
     let structure = caps_out.structure(0).unwrap();
 
     assert_eq!(structure.name(), "audio/x-ac4");
-    let framed = structure.get::<bool>("framed").unwrap();
-    assert!(framed);
 
     let alignment = structure.get::<String>("alignment").unwrap();
     assert_eq!(alignment, "frame");
