@@ -2627,16 +2627,22 @@ impl RtspTaskState {
 
         if rsp.status() == StatusCode::Unauthorized {
             if let Some(auth_header) = rsp.header(&WWW_AUTHENTICATE) {
-                if auth_header.as_str().starts_with("Digest") {
-                    return Err(RtspError::AuthChallenge(
-                        AuthMethod::Digest,
-                        Some(auth_header.to_string()),
-                    ));
-                } else if auth_header.as_str().starts_with("Basic") {
-                    return Err(RtspError::AuthChallenge(
-                        AuthMethod::Basic,
-                        Some(auth_header.to_string()),
-                    ));
+                let auth_value = auth_header.as_str();
+
+                match auth_value.split_ascii_whitespace().next() {
+                    Some(scheme) if scheme.eq_ignore_ascii_case("digest") => {
+                        return Err(RtspError::AuthChallenge(
+                            AuthMethod::Digest,
+                            Some(auth_value.to_string()),
+                        ));
+                    }
+                    Some(scheme) if scheme.eq_ignore_ascii_case("basic") => {
+                        return Err(RtspError::AuthChallenge(
+                            AuthMethod::Basic,
+                            Some(auth_value.to_string()),
+                        ));
+                    }
+                    _ => {}
                 }
             }
 

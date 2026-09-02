@@ -109,20 +109,35 @@ fn process_part(part: &str, params: &mut DigestParams) {
     let key = key.trim();
     let unescaped = unescape_value(value.trim());
 
-    match key {
-        "realm" => params.realm = unescaped,
-        "nonce" => params.nonce = unescaped,
-        "algorithm" => {
-            params.algorithm = DigestAlgorithm::from_str(&unescaped).ok();
-        }
-        "qop" => params.qop = Some(unescaped),
-        "opaque" => params.opaque = Some(unescaped),
-        _ => {}
+    // RFC 7235, Section 2.1: authentication parameter names are matched
+    // case-insensitively.
+    if key.eq_ignore_ascii_case("realm") {
+        params.realm = unescaped;
+    } else if key.eq_ignore_ascii_case("nonce") {
+        params.nonce = unescaped;
+    } else if key.eq_ignore_ascii_case("algorithm") {
+        params.algorithm = DigestAlgorithm::from_str(&unescaped).ok();
+    } else if key.eq_ignore_ascii_case("qop") {
+        params.qop = Some(unescaped);
+    } else if key.eq_ignore_ascii_case("opaque") {
+        params.opaque = Some(unescaped);
     }
 }
 
 pub fn parse_digest_params(challenge: &str) -> Option<DigestParams> {
-    let mut input = challenge.strip_prefix("Digest ")?.trim();
+    let mut input = challenge.trim_start();
+
+    // RFC 7235, Section 2.1: the auth-scheme is a token that is matched
+    // case-insensitively, followed by optional whitespace before the
+    // auth-param list.
+    let scheme_end = input
+        .find(|c: char| c.is_ascii_whitespace())
+        .unwrap_or(input.len());
+    if !input[..scheme_end].eq_ignore_ascii_case("digest") {
+        return None;
+    }
+    input = input[scheme_end..].trim_start();
+
     let mut params = DigestParams::default();
 
     while !input.is_empty() {
