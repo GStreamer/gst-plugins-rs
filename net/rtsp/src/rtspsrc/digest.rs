@@ -362,4 +362,58 @@ mod tests {
         // while still 'in_quotes'
         assert!(params.is_none(), "Should fail due to unclosed quote");
     }
+
+    #[test]
+    fn test_challenge_with_unknown_params_is_rejected() {
+        let challenge = "Digest key=bar, key2= with whitespace , key3=\"has,comma\"";
+        let params = parse_digest_params(challenge);
+
+        assert!(params.is_none());
+    }
+
+    #[test]
+    fn test_unknown_params_are_ignored() {
+        let challenge =
+            "Digest realm=\"r\", nonce=\"n\", key=bar, key2= with whitespace , key3=\"has,comma\"";
+        let params = parse_digest_params(challenge).unwrap();
+
+        assert_eq!(params.realm, "r");
+        assert_eq!(params.nonce, "n");
+    }
+
+    #[test]
+    fn test_scheme_is_case_insensitive() {
+        let challenge = "digest realm=\"test\", nonce=\"abc\", algorithm=MD5";
+        let params = parse_digest_params(challenge).expect("Should parse lowercase scheme");
+
+        assert_eq!(params.realm, "test");
+        assert_eq!(params.nonce, "abc");
+        assert_eq!(params.algorithm, Some(DigestAlgorithm::Md5));
+
+        let challenge = "DIGEST realm=\"test\", nonce=\"abc\"";
+        let params = parse_digest_params(challenge).expect("Should parse uppercase scheme");
+
+        assert_eq!(params.realm, "test");
+        assert_eq!(params.nonce, "abc");
+    }
+
+    #[test]
+    fn test_param_names_are_case_insensitive() {
+        let challenge = "Digest Realm= \"r\", NONCE=\"n\", ALGORITHM=MD5, QoP=\"auth\"";
+        let params = parse_digest_params(challenge).unwrap();
+
+        assert_eq!(params.realm, "r");
+        assert_eq!(params.nonce, "n");
+        assert_eq!(params.algorithm, Some(DigestAlgorithm::Md5));
+        assert_eq!(params.qop, Some("auth".to_string()));
+    }
+
+    #[test]
+    fn test_whitespace_after_scheme() {
+        let challenge = "Digest \t realm= \"r\", nonce =\"n\"";
+        let params = parse_digest_params(challenge).unwrap();
+
+        assert_eq!(params.realm, "r");
+        assert_eq!(params.nonce, "n");
+    }
 }
