@@ -184,7 +184,7 @@ gio = { git = "https://github.com/gtk-rs/gtk-rs-core", branch = "main", version 
 cairo-rs = { git = "https://github.com/gtk-rs/gtk-rs-core", branch = "main", features=["use_glib"], version = "0.23.0-alpha" }
 pango = { git = "https://github.com/gtk-rs/gtk-rs-core", branch = "main", version = "0.23.0-alpha" }
 pangocairo = { git = "https://github.com/gtk-rs/gtk-rs-core", branch = "main", version = "0.23.0-alpha" }
-gtk = { package = "gtk4", git = "https://github.com/gtk-rs/gtk4-rs", branch = "main", features = ["v4_6"], version = "0.12.0-alpha" }
+gtk = { package = "gtk4", git = "https://github.com/gtk-rs/gtk4-rs", branch = "main", features = ["v4_10"], version = "0.12.0-alpha" }
 gdk-wayland = { package = "gdk4-wayland", git = "https://github.com/gtk-rs/gtk4-rs", branch = "main", features = ["v4_4"], version = "0.12.0-alpha" }
 gdk-x11 = { package = "gdk4-x11", git = "https://github.com/gtk-rs/gtk4-rs", branch = "main", features = ["v4_4"], version = "0.12.0-alpha" }
 gdk-win32 = { package = "gdk4-win32", git = "https://github.com/gtk-rs/gtk4-rs", branch = "main", features = ["v4_4"], version = "0.12.0-alpha" }

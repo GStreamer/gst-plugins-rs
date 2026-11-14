@@ -41,17 +41,6 @@ fn plugin_init(plugin: &gst::Plugin) -> Result<(), glib::BoolError> {
         sink::imp::ReconfigureMode::static_type().mark_as_plugin_api(gst::PluginAPIFlags::empty());
     }
 
-    #[cfg(not(feature = "gtk_v4_10"))]
-    {
-        if gtk::micro_version() >= 13 {
-            gst::warning!(
-                sink::imp::CAT,
-                obj = plugin,
-                "GTK 4.13 or newer detected but plugin not compiled with support for this version. Rendering of video frames with alpha will likely be wrong"
-            );
-        }
-    }
-
     sink::register(plugin)
 }
 

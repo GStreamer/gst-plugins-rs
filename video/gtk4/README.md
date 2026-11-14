@@ -11,10 +11,9 @@ Additionally, the sink can render DMABufs directly on Linux if GTK 4.14 or
 newer is used. For this the `dmabuf` feature needs to be enabled.
 
 Depending on the GTK version that is used and should be supported as minimum,
-new features or more efficient processing can be opted in with the `gtk_v4_10`,
+new features or more efficient processing can be opted in with the
 `gtk_v4_12` and `gtk_v4_14` features. The minimum GTK version required by the
-sink is GTK 4.4 on Linux without GL support, and 4.6 on Windows and macOS, and
-on Linux with GL support.
+sink is GTK 4.10.
 
 The sink will provides a simple test window when launched via `gst-launch-1.0`
 or `gst-play-1.0` or if the environment variable `GST_GTK4_WINDOW=1` is set.

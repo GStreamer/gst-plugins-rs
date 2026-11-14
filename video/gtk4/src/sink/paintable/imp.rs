@@ -34,13 +34,10 @@ pub struct Paintable {
     cached_textures: RefCell<HashMap<super::super::frame::TextureCacheId, gdk::Texture>>,
     gl_context: RefCell<Option<gdk::GLContext>>,
     background_color: Cell<gdk::RGBA>,
-    #[cfg(feature = "gtk_v4_10")]
     scaling_filter: Cell<gsk::ScalingFilter>,
     use_scaling_filter: Cell<bool>,
     force_aspect_ratio: Cell<bool>,
     orientation: Cell<frame::Orientation>,
-    #[cfg(not(feature = "gtk_v4_10"))]
-    premult_shader: gsk::GLShader,
 }
 
 impl Default for Paintable {
@@ -50,15 +47,10 @@ impl Default for Paintable {
             cached_textures: Default::default(),
             gl_context: Default::default(),
             background_color: Cell::new(gdk::RGBA::BLACK),
-            #[cfg(feature = "gtk_v4_10")]
             scaling_filter: Cell::new(gsk::ScalingFilter::Linear),
             use_scaling_filter: Cell::new(false),
             force_aspect_ratio: Cell::new(false),
             orientation: Cell::new(frame::Orientation::Auto),
-            #[cfg(not(feature = "gtk_v4_10"))]
-            premult_shader: gsk::GLShader::from_bytes(&glib::Bytes::from_static(include_bytes!(
-                "premult.glsl"
-            ))),
         }
     }
 }
@@ -84,7 +76,6 @@ impl ObjectImpl for Paintable {
                     .blurb("Background color to render behind the video frame and in the borders")
                     .default_value(0)
                     .build(),
-                #[cfg(feature = "gtk_v4_10")]
                 glib::ParamSpecEnum::builder_with_default::<gsk::ScalingFilter>(
                     "scaling-filter",
                     gsk::ScalingFilter::Linear,
@@ -92,7 +83,6 @@ impl ObjectImpl for Paintable {
                 .nick("Scaling Filter")
                 .blurb("Scaling filter to use for rendering")
                 .build(),
-                #[cfg(feature = "gtk_v4_10")]
                 glib::ParamSpecBoolean::builder("use-scaling-filter")
                     .nick("Use Scaling Filter")
                     .blurb("Use selected scaling filter or GTK default for rendering")
@@ -126,9 +116,7 @@ impl ObjectImpl for Paintable {
 
                 v.to_value()
             }
-            #[cfg(feature = "gtk_v4_10")]
             "scaling-filter" => self.scaling_filter.get().to_value(),
-            #[cfg(feature = "gtk_v4_10")]
             "use-scaling-filter" => self.use_scaling_filter.get().to_value(),
             "force-aspect-ratio" => self.force_aspect_ratio.get().to_value(),
             "orientation" => self.orientation.get().to_value(),
@@ -150,9 +138,7 @@ impl ObjectImpl for Paintable {
                 self.background_color
                     .set(gdk::RGBA::new(red, green, blue, alpha))
             }
-            #[cfg(feature = "gtk_v4_10")]
             "scaling-filter" => self.scaling_filter.set(value.get().unwrap()),
-            #[cfg(feature = "gtk_v4_10")]
             "use-scaling-filter" => self.use_scaling_filter.set(value.get().unwrap()),
             "force-aspect-ratio" => self.force_aspect_ratio.set(value.get().unwrap()),
             "orientation" => {
@@ -414,9 +400,6 @@ impl PaintableImpl for Paintable {
             //
             // For GTK 4.10-4.12, or 4.14 and newer if a GLES2 context is used, we use a
             // self-mask to pre-multiply the alpha.
-            //
-            // For GTK before 4.10, we use a GL shader and hope that it works.
-            #[cfg(feature = "gtk_v4_10")]
             {
                 let context_requires_premult = {
                     #[cfg(feature = "gtk_v4_14")]
@@ -437,7 +420,6 @@ impl PaintableImpl for Paintable {
                 if do_premult {
                     snapshot.push_mask(gsk::MaskMode::Alpha);
                     if self.use_scaling_filter.get() {
-                        #[cfg(feature = "gtk_v4_10")]
                         snapshot.append_scaled_texture(texture, self.scaling_filter.get(), &bounds);
                     } else {
                         snapshot.append_texture(texture, &bounds);
@@ -460,7 +442,6 @@ impl PaintableImpl for Paintable {
                 }
 
                 if self.use_scaling_filter.get() {
-                    #[cfg(feature = "gtk_v4_10")]
                     snapshot.append_scaled_texture(texture, self.scaling_filter.get(), &bounds);
                 } else {
                     snapshot.append_texture(texture, &bounds);
@@ -469,30 +450,6 @@ impl PaintableImpl for Paintable {
                 if do_premult {
                     snapshot.pop(); // pop color matrix
                     snapshot.pop(); // pop mask 2
-                }
-            }
-            #[cfg(not(feature = "gtk_v4_10"))]
-            {
-                let do_premult =
-                    texture.is::<gdk::GLTexture>() && *has_alpha && gtk::micro_version() < 13;
-                if do_premult {
-                    snapshot.push_gl_shader(
-                        &self.premult_shader,
-                        &bounds,
-                        gsk::ShaderArgsBuilder::new(&self.premult_shader, None).to_args(),
-                    );
-                }
-
-                if self.use_scaling_filter.get() {
-                    #[cfg(feature = "gtk_v4_10")]
-                    snapshot.append_scaled_texture(texture, self.scaling_filter.get(), &bounds);
-                } else {
-                    snapshot.append_texture(texture, &bounds);
-                }
-
-                if do_premult {
-                    snapshot.gl_shader_pop_texture(); // pop texture appended above from the shader
-                    snapshot.pop(); // pop shader
                 }
             }
 

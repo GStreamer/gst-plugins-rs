@@ -41,7 +41,7 @@ path = "src/lib.rs"
 gst-plugin-version-helper.workspace = true
 
 [features]
-default = ["gtk_v4_10"]
+default = []
 static = []
 # Deprecated
 wayland = ["waylandegl"]
@@ -52,8 +52,7 @@ winegl = ["gdk-win32/egl", "gst-gl-egl"]
 dmabuf = ["gst-allocators", "gtk_v4_14", "gst-video/v1_24"]
 capi = []
 doc = ["gst/v1_18"]
-gtk_v4_10 = ["gtk/v4_10"]
-gtk_v4_12 = ["gtk/v4_12", "gtk_v4_10"]
+gtk_v4_12 = ["gtk/v4_12"]
 gtk_v4_14 = ["gtk/v4_14", "gtk_v4_12"]
 gtk_v4_16 = ["gtk/v4_16", "gtk_v4_14"]
 gtk_v4_18 = ["gtk/v4_18", "gtk_v4_16"]
